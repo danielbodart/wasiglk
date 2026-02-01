@@ -1,4 +1,4 @@
-// wasi_glk.zig - WASI-compatible Glk implementation for Emglken
+// wasi_glk.zig - WASI-compatible Glk implementation for wasiglk
 //
 // This implements the Glk API using WASI stdin/stdout for I/O.
 // Output is sent as JSON to stdout, input is read from stdin.

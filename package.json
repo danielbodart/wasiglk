@@ -1,46 +1,26 @@
 {
-  "name": "emglken",
-  "version": "0.7.0",
-  "description": "Glk meets Emscripten",
+  "name": "wasiglk",
+  "version": "1.0.0",
+  "description": "Interactive Fiction interpreters compiled to WebAssembly (WASI) using Zig",
   "author": "Dannii Willis <curiousdannii@gmail.com>",
-  "license": "GPL-2.0",
+  "license": "MIT",
   "keywords": [
     "interactive fiction",
-    "interactive-fiction"
+    "interactive-fiction",
+    "glk",
+    "wasi",
+    "webassembly"
   ],
-  "repository": "curiousdannii/emglken",
-  "bugs": "https://github.com/curiousdannii/emglken/issues",
-  "homepage": "https://github.com/curiousdannii/emglken",
+  "repository": "curiousdannii/wasiglk",
+  "bugs": "https://github.com/curiousdannii/wasiglk/issues",
+  "homepage": "https://github.com/curiousdannii/wasiglk",
   "type": "module",
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "main": "src/index.js",
-  "bin": {
-    "emglken": "bin/emglken.js"
-  },
-  "dependencies": {
-    "lodash-es": "^4.17.21",
-    "minimist": "^1.2.6",
-    "mute-stream": "2.0.0"
-  },
   "devDependencies": {
     "@playwright/test": "^1.58.1",
-    "esbuild": "^0.24.0",
-    "eslint": "^9.0.0",
     "playwright": "^1.58.1"
   },
   "scripts": {
-    "build": "./build.sh",
-    "lint": "eslint bin/ src/",
-    "test": "./tests/runtests.sh"
-  },
-  "files": [
-    "bin/emglken.js",
-    "build/*.js",
-    "build/*.json",
-    "build/*.wasm",
-    "src/index.js",
-    "versions.json"
-  ]
+    "build": "zig build -Doptimize=ReleaseSmall",
+    "test": "npx playwright test examples/jspi-browser/test.spec.js"
+  }
 }

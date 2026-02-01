@@ -1,6 +1,6 @@
 const std = @import("std");
 
-// Emglken build.zig - Compile IF interpreters using Zig
+// wasiglk build.zig - Compile IF interpreters using Zig
 //
 // Supports multiple targets:
 //   zig build                     # Build for WASI (default)

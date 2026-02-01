@@ -1,10 +1,10 @@
-# Emglken
+# wasiglk
 
 Interactive Fiction interpreters compiled to WebAssembly (WASI) using Zig.
 
 ## Overview
 
-Emglken compiles IF interpreters to WebAssembly with WASI, enabling them to run in browsers using [JSPI (JavaScript Promise Integration)](https://github.com/aspect-labs/aspect-engineering/blob/main/aspect-blog/2024-10-16-async-wasm.md) or in any WASI-compatible runtime.
+wasiglk compiles IF interpreters to WebAssembly with WASI, enabling them to run in browsers using [JSPI (JavaScript Promise Integration)](https://github.com/aspect-labs/aspect-engineering/blob/main/aspect-blog/2024-10-16-async-wasm.md) or in any WASI-compatible runtime.
 
 The interpreters use a Glk implementation (`src/wasi_glk.zig`) that communicates via JSON over stdin/stdout, compatible with the RemGlk protocol.
 
@@ -56,7 +56,7 @@ await runWithJSPI(wasmBytes, {
 ## Project Structure
 
 ```
-emglken/
+wasiglk/
 ├── build.zig           # Zig build configuration
 ├── src/
 │   ├── wasi_glk.zig    # Zig Glk implementation

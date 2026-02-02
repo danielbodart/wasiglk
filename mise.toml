@@ -1,6 +1,6 @@
 [tools]
 bun = "latest"
 node = "latest"
-wasi-sdk = "27"
+wasi-sdk = "29"
 wasmtime = "latest"
 zig = "latest"

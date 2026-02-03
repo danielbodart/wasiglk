@@ -19,20 +19,12 @@ The interpreters use a Glk implementation (in `packages/server/src/`) that commu
 
 ## Getting Started
 
-The `./run.ts` script auto-installs all required tools (Zig, Bun, wasi-sdk) on first run:
+The `./run` script auto-installs all required tools (Zig, Bun, wasi-sdk) on first run:
 
 ```bash
-# Build all interpreters
-./run.ts build
-
-# Run tests
-./run.ts test
-
-# Start dev server
-./run.ts serve
-
-# Output in packages/server/zig-out/bin/
-ls packages/server/zig-out/bin/*.wasm
+./run build    # Build all interpreters
+./run test     # Run tests
+./run serve    # Start dev server
 ```
 
 ## Interpreters
@@ -120,8 +112,8 @@ See `examples/jspi-browser/` for a complete working example.
 
 ```
 wasiglk/
-├── run.ts                  # Build orchestration script
-├── package.json            # Root scripts (bun run build, test, etc.)
+├── run                     # Build script (auto-installs tools)
+├── package.json
 ├── packages/
 │   ├── client/             # TypeScript client library
 │   │   ├── src/            # Client source code

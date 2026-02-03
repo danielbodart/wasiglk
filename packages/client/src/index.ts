@@ -35,3 +35,9 @@ export type { StoryFormat, FormatInfo } from './format';
 export type { GraphicsRenderer } from './renderers/types';
 export { colorToCSS } from './renderers/types';
 export { SvgRenderer } from './renderers/svg';
+
+// Worker message types (for advanced use cases)
+export type {
+  MainToWorkerMessage,
+  WorkerToMainMessage,
+} from './worker/messages';

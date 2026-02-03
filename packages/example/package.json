@@ -1,17 +1,15 @@
 {
-  "name": "@wasiglk/client",
+  "name": "@wasiglk/example",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./worker": "./src/worker/interpreter.worker.ts"
-  },
   "scripts": {
-    "test": "bun test",
+    "dev": "bun run serve.ts",
+    "build": "bun build src/main.ts --outdir=dist --minify",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bjorn3/browser_wasi_shim": "^0.4.2"
+    "@wasiglk/client": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",

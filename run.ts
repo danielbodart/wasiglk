@@ -1,6 +1,5 @@
 #!/usr/bin/env ./bootstrap.sh
-import {$, spawn, file} from "bun";
-import {copyFile} from "fs/promises";
+import {$, spawn} from "bun";
 
 process.env.FORCE_COLOR = "1";
 
@@ -17,14 +16,6 @@ export async function buildZig(...args: string[]) {
     // Default to ReleaseSmall for WASM size optimization
     const optimize = args.includes('-Doptimize=') ? [] : ['-Doptimize=ReleaseSmall'];
     await $`zig build --build-file packages/server/build.zig --prefix packages/server/zig-out ${optimize} ${args}`;
-
-    // Copy built WASM to example directory
-    const wasmPath = 'packages/server/zig-out/bin/glulxe.wasm';
-    const destPath = 'examples/jspi-browser/glulxe.wasm';
-    if (await file(wasmPath).exists()) {
-        await copyFile(wasmPath, destPath);
-        console.log(`Copied ${wasmPath} -> ${destPath}`);
-    }
 }
 
 // Build TypeScript client library
@@ -48,9 +39,9 @@ export async function test(...args: string[]) {
 
 // Run E2E browser tests
 export async function testE2E(...args: string[]) {
-    // Start the dev server in background (using Bun)
+    // Start the dev server in background
     const server = spawn({
-        cmd: ['bun', 'run', 'examples/jspi-browser/serve.js'],
+        cmd: ['bun', 'run', 'packages/example/serve.ts'],
         stdout: 'inherit',
         stderr: 'inherit',
     });
@@ -60,7 +51,7 @@ export async function testE2E(...args: string[]) {
 
     try {
         // Playwright's test runner requires Node - bunx has compatibility issues
-        await $`npx playwright test --config=examples/jspi-browser/playwright.config.js ${args}`;
+        await $`npx playwright test --config=packages/example/playwright.config.js ${args}`;
     } finally {
         server.kill();
     }
@@ -71,8 +62,14 @@ export async function testHeaded(...args: string[]) {
     await test('--headed', ...args);
 }
 
+// Run the example/demo
+export async function demo() {
+    await $`bun run packages/example/serve.ts`;
+}
+
+// Alias for demo
 export async function serve() {
-    await $`bun run examples/jspi-browser/serve.js`;
+    await demo();
 }
 
 export async function ci() {

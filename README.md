@@ -71,11 +71,9 @@ The `@wasiglk/client` package provides a TypeScript client for running interpret
 ```typescript
 import { createClient } from '@wasiglk/client';
 
-// Create client (auto-detects format and loads appropriate interpreter)
 const client = await createClient({
   storyUrl: '/stories/adventure.gblorb',
-  // Or provide data directly:
-  // storyData: new Uint8Array(...)
+  workerUrl: '/worker.js',  // Required: URL to the bundled worker script
 });
 
 // Run the interpreter and handle updates
@@ -86,7 +84,7 @@ for await (const update of client.updates({ width: 80, height: 24 })) {
       console.log(update.text);
       break;
 
-    case 'input':
+    case 'input-request':
       // Prompt user for input
       const input = await getUserInput(update.inputType);
       client.sendInput(input);
@@ -107,8 +105,76 @@ The client handles:
 - Loading the appropriate interpreter WASM module
 - Parsing Blorb files and providing image URLs
 - Converting RemGlk protocol to typed updates
+- Running interpreter in a Web Worker for responsive UI
+- OPFS persistence for save files
 
-See `examples/jspi-browser/` for a complete working example.
+See `packages/example/` for a complete working example. Run it with:
+
+```bash
+cd packages/example
+bun run dev
+```
+
+## Architecture
+
+### Separation of Concerns
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Main Thread                                                    │
+│  - UI rendering                                                 │
+│  - User input handling                                          │
+│  - Blorb parsing (images stay here)                             │
+│  - Client API (WasiGlkClient)                                   │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ postMessage (JSON only)
+┌───────────────────────────┴─────────────────────────────────────┐
+│  Web Worker                                                     │
+│  - WASM interpreter execution                                   │
+│  - WASI implementation (browser_wasi_shim)                      │
+│  - OPFS persistent storage (saves, autosave)                    │
+│  - JSPI for async stdin                                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Why This Architecture?
+
+**Worker for WASM**: Keeps main thread responsive. Heavy interpreter
+computation doesn't block UI.
+
+**OPFS for Persistence**: Origin Private File System provides synchronous
+file access in Workers. Save files persist across page reloads.
+
+**JSPI for Input**: JavaScript Promise Integration allows WASM to suspend
+while waiting for user input, without Asyncify code transformation.
+
+**Blorb on Main Thread**: Images are referenced by ID in the RemGlk protocol.
+The interpreter sends "draw image 5", the client looks up image 5 in the
+Blorb and renders it. No large binary transfers between threads.
+
+### Graphics Flow
+
+```
+Interpreter (Worker)              Client (Main Thread)
+─────────────────────             ────────────────────
+glk_image_draw(5, x, y)
+        │
+        ▼
+JSON: {"image": 5, "x": 10}  ──►  Receive update
+                                         │
+                                         ▼
+                                  blorb.getImageUrl(5)
+                                         │
+                                         ▼
+                                  Render <img src="blob:...">
+```
+
+### Sound (Future)
+
+Sound will follow the same pattern as graphics:
+- Interpreter sends sound commands (play, stop, volume)
+- Client extracts audio from Blorb
+- Client handles playback via Web Audio API
 
 ## Project Structure
 
@@ -118,29 +184,30 @@ wasiglk/
 ├── package.json
 ├── packages/
 │   ├── client/             # TypeScript client library
-│   │   ├── src/            # Client source code
+│   │   ├── src/
+│   │   │   ├── client.ts   # Main client (Worker communication)
+│   │   │   ├── worker/     # Web Worker implementation
+│   │   │   ├── blorb.ts    # Blorb parser
+│   │   │   └── protocol.ts # RemGlk protocol types
 │   │   └── package.json
+│   ├── example/            # Browser example using @wasiglk/client
+│   │   ├── src/main.ts     # Example entry point
+│   │   ├── public/         # Static files
+│   │   └── serve.ts        # Dev server
 │   ├── server/             # Zig GLK implementation + interpreters
 │   │   ├── build.zig       # Zig build configuration
 │   │   └── src/
 │   │       ├── root.zig    # Module entry point
-│   │       ├── types.zig   # Core types and constants
-│   │       ├── state.zig   # Internal data structures
 │   │       ├── protocol.zig # RemGlk JSON protocol
 │   │       ├── window.zig  # Window functions
 │   │       ├── stream.zig  # Stream I/O functions
-│   │       ├── event.zig   # Event handling
-│   │       ├── ...         # Other Glk modules
-│   │       ├── glk.h       # Glk API header
-│   │       ├── gi_dispa.c  # Glk dispatch layer
-│   │       └── gi_blorb.c  # Blorb support
+│   │       └── ...         # Other Glk modules
 │   ├── garglk/             # Garglk interpreters (submodule)
 │   ├── git/                # Git interpreter (submodule)
 │   ├── glulxe/             # Glulxe interpreter (submodule)
 │   ├── hugo/               # Hugo interpreter (submodule)
 │   └── zlib/               # zlib for Scare (submodule)
-└── examples/
-    └── jspi-browser/       # Browser JSPI example
+└── tests/                  # Test story files
 ```
 
 ## License

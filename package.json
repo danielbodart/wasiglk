@@ -2,8 +2,11 @@
   "name": "wasiglk",
   "version": "1.0.0",
   "description": "Interactive Fiction interpreters compiled to WebAssembly (WASI) using Zig",
-  "author": "Dannii Willis <curiousdannii@gmail.com>",
+  "author": "Daniel Worthington-Bodart <dan@bodar.com>",
   "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
   "keywords": [
     "interactive fiction",
     "interactive-fiction",

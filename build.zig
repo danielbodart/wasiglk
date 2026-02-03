@@ -31,6 +31,10 @@ pub fn build(b: *std.Build) void {
         .{ "glulxe", "Build Glulxe interpreter", buildGlulxe },
         .{ "git", "Build Git interpreter", buildGit },
         .{ "hugo", "Build Hugo interpreter", buildHugo },
+        .{ "agility", "Build Agility interpreter (AGT)", buildAgility },
+        .{ "jacl", "Build JACL interpreter", buildJacl },
+        .{ "level9", "Build Level 9 interpreter", buildLevel9 },
+        .{ "magnetic", "Build Magnetic interpreter", buildMagnetic },
     };
 
     inline for (interpreters) |info| {
@@ -40,7 +44,21 @@ pub fn build(b: *std.Build) void {
         b.getInstallStep().dependOn(&install.step);
     }
 
-    // Scare (needs zlib, works on both native and WASM)
+    // Interpreters that need setjmp/longjmp (WASM exception handling)
+    const setjmp_interpreters = .{
+        .{ "advsys", "Build AdvSys interpreter", buildAdvsys },
+        .{ "alan2", "Build Alan 2 interpreter", buildAlan2 },
+        .{ "alan3", "Build Alan 3 interpreter", buildAlan3 },
+    };
+
+    inline for (setjmp_interpreters) |info| {
+        const exe = info[2](b, target, optimize, wasi_glk);
+        const install = b.addInstallArtifact(exe, .{});
+        b.step(info[0], info[1]).dependOn(&install.step);
+        b.getInstallStep().dependOn(&install.step);
+    }
+
+    // Scare (needs zlib + setjmp, works on both native and WASM)
     const scare = buildScare(b, target, optimize, wasi_glk, zlib);
     const scare_install = b.addInstallArtifact(scare, .{});
     b.step("scare", "Build Scare interpreter (ADRIFT)").dependOn(&scare_install.step);
@@ -476,6 +494,362 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     exe.linkLibCpp();
 
     return exe;
+}
+
+// ============================================================================
+// Simple interpreters (no setjmp/longjmp)
+// ============================================================================
+
+fn buildAgility(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "agility",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    exe.addCSourceFiles(.{
+        .root = b.path("garglk/terps/agility"),
+        .files = &.{
+            "agtread.c",    "gamedata.c",   "util.c",       "agxfile.c",
+            "auxfile.c",    "filename.c",   "parser.c",     "exec.c",
+            "runverb.c",    "metacommand.c", "savegame.c",  "debugcmd.c",
+            "agil.c",       "token.c",      "disassemble.c", "object.c",
+            "interface.c",  "os_glk.c",
+        },
+        .flags = &.{
+            "-DGLK",
+            "-DGARGLK",
+            "-D_XOPEN_SOURCE=600",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Wall",
+            "-Wno-pointer-sign",
+            "-Wno-unused-variable",
+        },
+    });
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("garglk/terps/agility"));
+
+    return exe;
+}
+
+fn buildJacl(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "jacl",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    const is_wasi = target.result.os.tag == .wasi;
+
+    exe.addCSourceFiles(.{
+        .root = b.path("garglk/terps/jacl"),
+        .files = &.{
+            "jacl.c",       "glk_startup.c", "findroute.c",  "interpreter.c",
+            "loader.c",     "glk_saver.c",   "logging.c",    "parser.c",
+            "display.c",    "utils.c",       "jpp.c",        "resolvers.c",
+            "errors.c",     "encapsulate.c", "libcsv.c",
+        },
+        .flags = if (is_wasi) &.{
+            "-DGLK",
+            "-DGARGLK",
+            // WASI doesn't support file locking - provide stub constants
+            "-DF_SETLK=6",
+            "-DF_RDLCK=0",
+            "-DF_WRLCK=1",
+            "-DF_UNLCK=2",
+            "-D_XOPEN_SOURCE=600",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-D_WASI_EMULATED_PROCESS_CLOCKS",
+            "-Wall",
+            "-Wno-parentheses-equality",
+            "-Wno-macro-redefined",
+            "-Wno-unused-variable",
+        } else &.{
+            "-DGLK",
+            "-DGARGLK",
+            "-D_XOPEN_SOURCE=600",
+            "-Wall",
+            "-Wno-parentheses-equality",
+        },
+    });
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("garglk/terps/jacl"));
+
+    // Link emulated process clocks for WASI
+    if (is_wasi) {
+        exe.linkSystemLibrary("wasi-emulated-process-clocks");
+    }
+
+    return exe;
+}
+
+fn buildLevel9(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "level9",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    exe.addCSourceFiles(.{
+        .root = b.path("garglk/terps/level9"),
+        .files = &.{ "bitmap.c", "level9.c" },
+        .flags = &.{
+            "-DBITMAP_DECODER",
+            "-DNEED_STRICMP_PROTOTYPE",
+            "-Dstricmp=gln_strcasecmp",
+            "-Dstrnicmp=gln_strncasecmp",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Wall",
+            "-Wno-switch",
+        },
+    });
+
+    exe.addCSourceFiles(.{
+        .root = b.path("garglk/terps/level9/Glk"),
+        .files = &.{"glk.c"},
+        .flags = &.{
+            "-DBITMAP_DECODER",
+            "-DNEED_STRICMP_PROTOTYPE",
+            "-Dstricmp=gln_strcasecmp",
+            "-Dstrnicmp=gln_strncasecmp",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Wall",
+        },
+    });
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("garglk/terps/level9"));
+
+    return exe;
+}
+
+fn buildMagnetic(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "magnetic",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    exe.addCSourceFiles(.{
+        .root = b.path("garglk/terps/magnetic/Generic"),
+        .files = &.{"emu.c"},
+        .flags = &.{
+            "-DMAGNETIC_GLKUNIX",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Wall",
+            "-Wno-pointer-sign",
+        },
+    });
+
+    exe.addCSourceFiles(.{
+        .root = b.path("garglk/terps/magnetic/Glk"),
+        .files = &.{"glk.c"},
+        .flags = &.{
+            "-DMAGNETIC_GLKUNIX",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Wall",
+            "-Wno-pointer-sign",
+        },
+    });
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("garglk/terps/magnetic/Generic"));
+
+    return exe;
+}
+
+// ============================================================================
+// Interpreters requiring setjmp/longjmp (WASM exception handling)
+// ============================================================================
+
+fn buildAdvsys(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const advsys_target = if (target.result.cpu.arch == .wasm32)
+        b.resolveTargetQuery(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .wasi,
+            .cpu_features_add = std.Target.wasm.featureSet(&.{.exception_handling}),
+        })
+    else
+        target;
+
+    const exe = b.addExecutable(.{
+        .name = "advsys",
+        .root_module = b.createModule(.{ .target = advsys_target, .optimize = optimize }),
+    });
+
+    const advsys_files = &[_][]const u8{
+        "advmsg.c",  "advtrm.c",  "advprs.c",  "advdbs.c",
+        "advint.c",  "advjunk.c", "advexe.c",  "glkstart.c",
+    };
+
+    if (advsys_target.result.cpu.arch == .wasm32) {
+        exe.addCSourceFiles(.{
+            .root = b.path("garglk/terps/advsys"),
+            .files = advsys_files,
+            .flags = &.{
+                "-D_WASI_EMULATED_SIGNAL",
+                "-Wall",
+                "-Wno-parentheses",
+                "-mllvm", "-wasm-enable-sjlj",
+                "-mllvm", "-wasm-use-legacy-eh=false",
+            },
+        });
+        addWasiSetjmp(exe, b);
+    } else {
+        exe.addCSourceFiles(.{
+            .root = b.path("garglk/terps/advsys"),
+            .files = advsys_files,
+            .flags = &.{
+                "-D_WASI_EMULATED_SIGNAL",
+                "-Wall",
+                "-Wno-parentheses",
+            },
+        });
+    }
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("garglk/terps/advsys"));
+
+    return exe;
+}
+
+fn buildAlan2(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const alan2_target = if (target.result.cpu.arch == .wasm32)
+        b.resolveTargetQuery(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .wasi,
+            .cpu_features_add = std.Target.wasm.featureSet(&.{.exception_handling}),
+        })
+    else
+        target;
+
+    const exe = b.addExecutable(.{
+        .name = "alan2",
+        .root_module = b.createModule(.{ .target = alan2_target, .optimize = optimize }),
+    });
+
+    const alan2_files = &[_][]const u8{
+        "arun.c",       "main.c",     "debug.c",    "args.c",
+        "exe.c",        "inter.c",    "parse.c",    "rules.c",
+        "stack.c",      "decode.c",   "term.c",     "reverse.c",
+        "readline.c",   "params.c",   "sysdep.c",   "glkstart.c",
+        "glkio.c",      "alan.version.c",
+    };
+
+    // REVERSED macro for little-endian systems
+    const base_flags = &[_][]const u8{
+        "-DGLK",
+        "-DGARGLK",
+        "-DREVERSED", // Little-endian
+        "-D__unix__", // For WASI compatibility with unix-style code paths
+        "-D_XOPEN_SOURCE=600",
+        "-D_WASI_EMULATED_SIGNAL",
+        "-Wall",
+        "-Wno-dangling-else",
+    };
+
+    if (alan2_target.result.cpu.arch == .wasm32) {
+        exe.addCSourceFiles(.{
+            .root = b.path("garglk/terps/alan2"),
+            .files = alan2_files,
+            .flags = base_flags ++ &[_][]const u8{
+                "-mllvm", "-wasm-enable-sjlj",
+                "-mllvm", "-wasm-use-legacy-eh=false",
+            },
+        });
+        addWasiSetjmp(exe, b);
+    } else {
+        exe.addCSourceFiles(.{
+            .root = b.path("garglk/terps/alan2"),
+            .files = alan2_files,
+            .flags = base_flags,
+        });
+    }
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("garglk/terps/alan2"));
+
+    return exe;
+}
+
+fn buildAlan3(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const alan3_target = if (target.result.cpu.arch == .wasm32)
+        b.resolveTargetQuery(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .wasi,
+            .cpu_features_add = std.Target.wasm.featureSet(&.{.exception_handling}),
+        })
+    else
+        target;
+
+    const exe = b.addExecutable(.{
+        .name = "alan3",
+        .root_module = b.createModule(.{ .target = alan3_target, .optimize = optimize }),
+    });
+
+    const alan3_files = &[_][]const u8{
+        "alan.version.c", "act.c",        "actor.c",      "args.c",
+        "arun.c",         "attribute.c",  "checkentry.c", "class.c",
+        "converter.c",    "current.c",    "debug.c",      "decode.c",
+        "dictionary.c",   "event.c",      "exe.c",        "fnmatch.c",
+        "glkio.c",        "glkstart.c",   "instance.c",   "inter.c",
+        "lists.c",        "literal.c",    "main.c",       "memory.c",
+        "msg.c",          "options.c",    "output.c",     "params.c",
+        "parse.c",        "readline.c",   "reverse.c",    "rules.c",
+        "save.c",         "scan.c",       "score.c",      "set.c",
+        "stack.c",        "state.c",      "syntax.c",     "sysdep.c",
+        "syserr.c",       "term.c",       "types.c",      "utils.c",
+        "word.c",         "compatibility.c", "AltInfo.c", "Container.c",
+        "Location.c",     "ParameterPosition.c", "StateStack.c",
+    };
+
+    const base_flags = &[_][]const u8{
+        "-DGLK",
+        "-DGARGLK",
+        "-DHAVE_GARGLK",
+        "-DBUILD=0",
+        "-D_XOPEN_SOURCE=600",
+        "-D_WASI_EMULATED_SIGNAL",
+        "-Wall",
+    };
+
+    if (alan3_target.result.cpu.arch == .wasm32) {
+        exe.addCSourceFiles(.{
+            .root = b.path("garglk/terps/alan3"),
+            .files = alan3_files,
+            .flags = base_flags ++ &[_][]const u8{
+                "-mllvm", "-wasm-enable-sjlj",
+                "-mllvm", "-wasm-use-legacy-eh=false",
+            },
+        });
+        addWasiSetjmp(exe, b);
+    } else {
+        exe.addCSourceFiles(.{
+            .root = b.path("garglk/terps/alan3"),
+            .files = alan3_files,
+            .flags = base_flags,
+        });
+    }
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("garglk/terps/alan3"));
+
+    return exe;
+}
+
+// Helper to link wasi-sdk's libsetjmp for WASM exception handling
+fn addWasiSetjmp(exe: *std.Build.Step.Compile, b: *std.Build) void {
+    const wasi_sdk_path = std.process.getEnvVarOwned(b.allocator, "WASI_SDK_PATH") catch |err| blk: {
+        if (err == error.EnvironmentVariableNotFound) {
+            const home = std.process.getEnvVarOwned(b.allocator, "HOME") catch break :blk null;
+            break :blk std.fmt.allocPrint(b.allocator, "{s}/.local/share/mise/installs/wasi-sdk/27/wasi-sdk", .{home}) catch null;
+        }
+        break :blk null;
+    };
+    if (wasi_sdk_path) |sdk_path| {
+        const libsetjmp_path = std.fmt.allocPrint(b.allocator, "{s}/share/wasi-sysroot/lib/wasm32-wasi/libsetjmp.a", .{sdk_path}) catch null;
+        if (libsetjmp_path) |path| {
+            exe.addObjectFile(.{ .cwd_relative = path });
+        }
+    }
 }
 
 // Helper to add common Glk support to an executable

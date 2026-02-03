@@ -20,12 +20,12 @@ typedef int32_t glsi32;
 #define GLK_MODULE_LINE_TERMINATORS
 #define GLK_MODULE_UNICODE
 #define GLK_MODULE_UNICODE_NORM
-/* Disabled for WASI minimal build:
 #define GLK_MODULE_IMAGE
+/* Disabled for WASI minimal build:
 #define GLK_MODULE_IMAGE2
+*/
 #define GLK_MODULE_SOUND
 #define GLK_MODULE_SOUND2
-*/
 #define GLK_MODULE_HYPERLINKS
 #define GLK_MODULE_DATETIME
 #define GLK_MODULE_RESOURCE_STREAM
@@ -332,6 +332,29 @@ extern glui32 glk_buffer_canon_decompose_uni(glui32 *buf, glui32 len, glui32 num
 extern glui32 glk_buffer_canon_normalize_uni(glui32 *buf, glui32 len, glui32 numchars);
 #endif
 
+#ifdef GLK_MODULE_IMAGE
+
+#define imagealign_InlineUp (0x01)
+#define imagealign_InlineDown (0x02)
+#define imagealign_InlineCenter (0x03)
+#define imagealign_MarginLeft (0x04)
+#define imagealign_MarginRight (0x05)
+
+extern glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2);
+extern glui32 glk_image_draw_scaled(winid_t win, glui32 image,
+    glsi32 val1, glsi32 val2, glui32 width, glui32 height);
+extern glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height);
+
+extern void glk_window_flow_break(winid_t win);
+
+extern void glk_window_erase_rect(winid_t win,
+    glsi32 left, glsi32 top, glui32 width, glui32 height);
+extern void glk_window_fill_rect(winid_t win, glui32 color,
+    glsi32 left, glsi32 top, glui32 width, glui32 height);
+extern void glk_window_set_background_color(winid_t win, glui32 color);
+
+#endif /* GLK_MODULE_IMAGE */
+
 #ifdef GLK_MODULE_HYPERLINKS
 extern void glk_set_hyperlink(glui32 linkval);
 extern void glk_set_hyperlink_stream(strid_t str, glui32 linkval);
@@ -375,5 +398,37 @@ extern glsi32 glk_date_to_simple_time_local(glkdate_t *date, glui32 factor);
 extern strid_t glk_stream_open_resource(glui32 filenum, glui32 rock);
 extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
 #endif
+
+#ifdef GLK_MODULE_SOUND
+
+extern schanid_t glk_schannel_create(glui32 rock);
+extern void glk_schannel_destroy(schanid_t chan);
+extern schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rockptr);
+extern glui32 glk_schannel_get_rock(schanid_t chan);
+
+extern glui32 glk_schannel_play(schanid_t chan, glui32 snd);
+extern glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats,
+    glui32 notify);
+extern void glk_schannel_stop(schanid_t chan);
+extern void glk_schannel_set_volume(schanid_t chan, glui32 vol);
+
+extern void glk_sound_load_hint(glui32 snd, glui32 flag);
+
+#ifdef GLK_MODULE_SOUND2
+extern schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume);
+extern glui32 glk_schannel_play_multi(schanid_t *chanarray, glui32 chancount,
+    glui32 *sndarray, glui32 soundcount, glui32 notify);
+extern void glk_schannel_pause(schanid_t chan);
+extern void glk_schannel_unpause(schanid_t chan);
+extern void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
+    glui32 duration, glui32 notify);
+#endif /* GLK_MODULE_SOUND2 */
+#endif /* GLK_MODULE_SOUND */
+
+/* Garglk extensions (stubs for compatibility) */
+extern void garglk_set_program_name(const char *name);
+extern void garglk_set_program_info(const char *info);
+extern void garglk_set_story_name(const char *name);
+extern void garglk_set_story_title(const char *title);
 
 #endif /* GLK_H */

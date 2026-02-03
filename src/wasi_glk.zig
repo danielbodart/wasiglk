@@ -1273,6 +1273,15 @@ export fn glkunix_fileref_get_filename(fref_opaque: frefid_t) callconv(.c) ?[*:0
     return cstr.ptr;
 }
 
+// ============== Garglk Extensions (stubs) ==============
+// These are informational functions used by some interpreters.
+// For our JSON-over-stdin/stdout protocol, these are no-ops.
+
+export fn garglk_set_program_name(_: ?[*:0]const u8) callconv(.c) void {}
+export fn garglk_set_program_info(_: ?[*:0]const u8) callconv(.c) void {}
+export fn garglk_set_story_name(_: ?[*:0]const u8) callconv(.c) void {}
+export fn garglk_set_story_title(_: ?[*:0]const u8) callconv(.c) void {}
+
 // ============== Event Functions ==============
 
 export fn glk_select(event: ?*event_t) callconv(.c) void {

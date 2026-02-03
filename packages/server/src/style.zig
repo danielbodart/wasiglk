@@ -1,0 +1,62 @@
+// style.zig - Glk style hint functions
+
+const types = @import("types.zig");
+
+const glui32 = types.glui32;
+const glsi32 = types.glsi32;
+const winid_t = types.winid_t;
+
+export fn glk_stylehint_set(wintype_val: glui32, styl: glui32, hint: glui32, val: glsi32) callconv(.c) void {
+    _ = wintype_val;
+    _ = styl;
+    _ = hint;
+    _ = val;
+}
+
+export fn glk_stylehint_clear(wintype_val: glui32, styl: glui32, hint: glui32) callconv(.c) void {
+    _ = wintype_val;
+    _ = styl;
+    _ = hint;
+}
+
+export fn glk_style_distinguish(win: winid_t, styl1: glui32, styl2: glui32) callconv(.c) glui32 {
+    _ = win;
+    return if (styl1 != styl2) 1 else 0;
+}
+
+export fn glk_style_measure(win: winid_t, styl: glui32, hint: glui32, result: ?*glui32) callconv(.c) glui32 {
+    _ = win;
+    _ = styl;
+    _ = hint;
+    if (result) |r| r.* = 0;
+    return 0;
+}
+
+export fn glk_set_echo_line_event(win: winid_t, val: glui32) callconv(.c) void {
+    _ = win;
+    _ = val;
+}
+
+export fn glk_set_terminators_line_event(win: winid_t, keycodes_ptr: ?[*]glui32, count: glui32) callconv(.c) void {
+    _ = win;
+    _ = keycodes_ptr;
+    _ = count;
+}
+
+// Hyperlinks
+export fn glk_set_hyperlink(linkval: glui32) callconv(.c) void {
+    _ = linkval;
+}
+
+export fn glk_set_hyperlink_stream(str: types.strid_t, linkval: glui32) callconv(.c) void {
+    _ = str;
+    _ = linkval;
+}
+
+export fn glk_request_hyperlink_event(win: winid_t) callconv(.c) void {
+    _ = win;
+}
+
+export fn glk_cancel_hyperlink_event(win: winid_t) callconv(.c) void {
+    _ = win;
+}

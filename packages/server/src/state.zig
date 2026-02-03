@@ -1,0 +1,108 @@
+// state.zig - Internal data structures and global state
+
+const std = @import("std");
+const types = @import("types.zig");
+
+pub const glui32 = types.glui32;
+pub const glsi32 = types.glsi32;
+pub const DispatchRock = types.DispatchRock;
+
+// Use C allocator to avoid conflicts with C code's malloc/free
+pub const allocator = std.heap.c_allocator;
+
+// ============== Internal Data Structures ==============
+
+pub const StreamType = enum { window, memory, file };
+
+pub const WindowData = struct {
+    id: glui32,
+    rock: glui32,
+    win_type: glui32,
+    stream: ?*StreamData = null,
+    echo_stream: ?*StreamData = null,
+    parent: ?*WindowData = null,
+    child1: ?*WindowData = null,
+    child2: ?*WindowData = null,
+    // Input state
+    char_request: bool = false,
+    line_request: bool = false,
+    char_request_uni: bool = false,
+    line_request_uni: bool = false,
+    line_buffer: ?[*]u8 = null,
+    line_buffer_uni: ?[*]glui32 = null,
+    line_buflen: glui32 = 0,
+    // Retained array rock for line buffer (for dispatch layer copy-back)
+    line_buffer_rock: DispatchRock = .{ .num = 0 },
+    // Dispatch rock for Glulxe
+    dispatch_rock: DispatchRock = .{ .num = 0 },
+    // Linked list
+    prev: ?*WindowData = null,
+    next: ?*WindowData = null,
+};
+
+pub const StreamData = struct {
+    id: glui32,
+    rock: glui32,
+    stream_type: StreamType,
+    readable: bool,
+    writable: bool,
+    // Memory stream
+    buf: ?[*]u8 = null,
+    buf_uni: ?[*]glui32 = null,
+    buflen: glui32 = 0,
+    bufptr: glui32 = 0,
+    is_unicode: bool = false,
+    // File stream
+    file: ?std.fs.File = null,
+    // Associated window
+    win: ?*WindowData = null,
+    // Statistics
+    readcount: glui32 = 0,
+    writecount: glui32 = 0,
+    // Dispatch rock for Glulxe
+    dispatch_rock: DispatchRock = .{ .num = 0 },
+    // Linked list
+    prev: ?*StreamData = null,
+    next: ?*StreamData = null,
+};
+
+pub const FileRefData = struct {
+    id: glui32,
+    rock: glui32,
+    filename: []const u8,
+    usage: glui32,
+    textmode: bool,
+    // Lazily allocated null-terminated copy for C interop (glkunix_fileref_get_filename)
+    filename_cstr: ?[*:0]const u8 = null,
+    // Dispatch rock for Glulxe
+    dispatch_rock: DispatchRock = .{ .num = 0 },
+    prev: ?*FileRefData = null,
+    next: ?*FileRefData = null,
+};
+
+// ============== Global State ==============
+
+pub var root_window: ?*WindowData = null;
+pub var window_list: ?*WindowData = null;
+pub var stream_list: ?*StreamData = null;
+pub var current_stream: ?*StreamData = null;
+pub var fileref_list: ?*FileRefData = null;
+
+pub var window_id_counter: glui32 = 1;
+pub var stream_id_counter: glui32 = 1;
+pub var fileref_id_counter: glui32 = 1;
+
+// Text output buffer (fixed size, simple approach)
+pub var text_buffer: [8192]u8 = undefined;
+pub var text_buffer_len: usize = 0;
+pub var text_buffer_win: ?*WindowData = null;
+
+// Initialization flag and client metrics
+pub var glk_initialized: bool = false;
+pub var client_metrics: struct {
+    width: u32 = 80,
+    height: u32 = 24,
+} = .{};
+
+// Working directory for glkunix
+pub var workdir: ?[]const u8 = null;

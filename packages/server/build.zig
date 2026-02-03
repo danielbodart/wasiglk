@@ -85,7 +85,7 @@ fn buildWasiGlk(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     return b.addObject(.{
         .name = "wasi_glk",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/wasi_glk.zig"),
+            .root_source_file = b.path("src/root.zig"),
             .target = target,
             .optimize = optimize,
             .link_libc = true,

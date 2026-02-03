@@ -407,6 +407,100 @@ fn queueContentUpdate(win_id: u32, text: ?[]const u8, clear: bool) void {
         .clear = if (clear) true else null,
         .text = text,
     };
+}
+
+// Send an image content update directly (bypasses normal queue to handle JSON array format)
+fn sendImageUpdate(win_id: u32, image: glui32, alignment: glsi32, img_width: glui32, img_height: glui32) void {
+    // Flush any pending updates first
+    if (pending_content_len > 0 or pending_windows_len > 0 or pending_input_len > 0) {
+        sendUpdate();
+    }
+
+    // Build the JSON manually to get the correct array format for text
+    var buf: [1024]u8 = undefined;
+    const json = std.fmt.bufPrint(&buf,
+        \\{{"type":"update","gen":{d},"content":[{{"id":{d},"text":[{{"special":{{"type":"image","image":{d},"alignment":{d},"width":{d},"height":{d}}}}}]}}]}}
+    , .{ generation, win_id, image, alignment, img_width, img_height }) catch return;
+
+    writeStdout(json);
+    writeStdout("\n");
+    generation += 1;
+}
+
+// Send a graphics window image update (includes x, y position)
+fn sendGraphicsImageUpdate(win_id: u32, image: glui32, x: glsi32, y: glsi32, img_width: glui32, img_height: glui32) void {
+    if (pending_content_len > 0 or pending_windows_len > 0 or pending_input_len > 0) {
+        sendUpdate();
+    }
+
+    var buf: [1024]u8 = undefined;
+    const json = std.fmt.bufPrint(&buf,
+        \\{{"type":"update","gen":{d},"content":[{{"id":{d},"text":[{{"special":{{"type":"image","image":{d},"x":{d},"y":{d},"width":{d},"height":{d}}}}}]}}]}}
+    , .{ generation, win_id, image, x, y, img_width, img_height }) catch return;
+
+    writeStdout(json);
+    writeStdout("\n");
+    generation += 1;
+}
+
+fn sendFlowBreakUpdate(win_id: u32) void {
+    if (pending_content_len > 0 or pending_windows_len > 0 or pending_input_len > 0) {
+        sendUpdate();
+    }
+
+    var buf: [256]u8 = undefined;
+    const json = std.fmt.bufPrint(&buf,
+        \\{{"type":"update","gen":{d},"content":[{{"id":{d},"text":[{{"special":{{"type":"flowbreak"}}}}]}}]}}
+    , .{ generation, win_id }) catch return;
+
+    writeStdout(json);
+    writeStdout("\n");
+    generation += 1;
+}
+
+fn sendGraphicsFillUpdate(win_id: u32, color: glui32, x: glsi32, y: glsi32, width: glui32, height: glui32) void {
+    if (pending_content_len > 0 or pending_windows_len > 0 or pending_input_len > 0) {
+        sendUpdate();
+    }
+
+    var buf: [512]u8 = undefined;
+    const json = std.fmt.bufPrint(&buf,
+        \\{{"type":"update","gen":{d},"content":[{{"id":{d},"text":[{{"special":{{"type":"fill","color":{d},"x":{d},"y":{d},"width":{d},"height":{d}}}}}]}}]}}
+    , .{ generation, win_id, color, x, y, width, height }) catch return;
+
+    writeStdout(json);
+    writeStdout("\n");
+    generation += 1;
+}
+
+fn sendGraphicsEraseUpdate(win_id: u32, x: glsi32, y: glsi32, width: glui32, height: glui32) void {
+    if (pending_content_len > 0 or pending_windows_len > 0 or pending_input_len > 0) {
+        sendUpdate();
+    }
+
+    var buf: [512]u8 = undefined;
+    const json = std.fmt.bufPrint(&buf,
+        \\{{"type":"update","gen":{d},"content":[{{"id":{d},"text":[{{"special":{{"type":"fill","x":{d},"y":{d},"width":{d},"height":{d}}}}}]}}]}}
+    , .{ generation, win_id, x, y, width, height }) catch return;
+
+    writeStdout(json);
+    writeStdout("\n");
+    generation += 1;
+}
+
+fn sendGraphicsSetColorUpdate(win_id: u32, color: glui32) void {
+    if (pending_content_len > 0 or pending_windows_len > 0 or pending_input_len > 0) {
+        sendUpdate();
+    }
+
+    var buf: [256]u8 = undefined;
+    const json = std.fmt.bufPrint(&buf,
+        \\{{"type":"update","gen":{d},"content":[{{"id":{d},"text":[{{"special":{{"type":"setcolor","color":{d}}}}}]}}]}}
+    , .{ generation, win_id, color }) catch return;
+
+    writeStdout(json);
+    writeStdout("\n");
+    generation += 1;
     pending_content_len += 1;
 }
 
@@ -502,7 +596,11 @@ export fn glk_gestalt_ext(sel: glui32, val: glui32, arr: ?[*]glui32, arrlen: glu
         },
         gestalt.Unicode, gestalt.UnicodeNorm => return 1,
         gestalt.Timer => return 0,
-        gestalt.Graphics, gestalt.DrawImage, gestalt.GraphicsTransparency, gestalt.GraphicsCharInput => return 0,
+        gestalt.Graphics, gestalt.DrawImage, gestalt.GraphicsTransparency => {
+            // Graphics supported if Blorb map with images is loaded
+            return if (blorb_map != null) @as(glui32, 1) else @as(glui32, 0);
+        },
+        gestalt.GraphicsCharInput => return 0,
         gestalt.Sound, gestalt.SoundVolume, gestalt.SoundNotify, gestalt.SoundMusic, gestalt.Sound2 => return 0,
         gestalt.Hyperlinks, gestalt.HyperlinkInput => return 1,
         gestalt.MouseInput => return 0,
@@ -1770,56 +1868,111 @@ export fn glk_stream_open_resource_uni(filenum: glui32, rock: glui32) callconv(.
     return null;
 }
 
-// Image stubs
+// Image functions
 export fn glk_image_get_info(image: glui32, width: ?*glui32, height: ?*glui32) callconv(.c) glui32 {
-    _ = image;
-    if (width) |w| w.* = 0;
-    if (height) |h| h.* = 0;
-    return 0;
+    const map = blorb_map orelse {
+        if (width) |w| w.* = 0;
+        if (height) |h| h.* = 0;
+        return 0;
+    };
+
+    var info: giblorb_image_info_t = undefined;
+    const err = giblorb_load_image_info(map, image, &info);
+    if (err != 0) {
+        if (width) |w| w.* = 0;
+        if (height) |h| h.* = 0;
+        return 0;
+    }
+
+    if (width) |w| w.* = info.width;
+    if (height) |h| h.* = info.height;
+    return 1;
 }
 
 export fn glk_image_draw(win: winid_t, image: glui32, val1: glsi32, val2: glsi32) callconv(.c) glui32 {
-    _ = win;
-    _ = image;
-    _ = val1;
-    _ = val2;
-    return 0;
+    const w: ?*WindowData = @ptrCast(@alignCast(win));
+    if (w == null) return 0;
+
+    const map = blorb_map orelse return 0;
+
+    // Get image info from Blorb
+    var info: giblorb_image_info_t = undefined;
+    const err = giblorb_load_image_info(map, image, &info);
+    if (err != 0) return 0;
+
+    // Flush any pending text
+    flushTextBuffer();
+
+    // For text buffer windows, val1 is alignment, val2 is unused
+    // For graphics windows, val1 is x, val2 is y
+    if (w.?.win_type == wintype.TextBuffer) {
+        sendImageUpdate(w.?.id, image, val1, info.width, info.height);
+    } else if (w.?.win_type == wintype.Graphics) {
+        // Graphics window: val1=x, val2=y
+        sendGraphicsImageUpdate(w.?.id, image, val1, val2, info.width, info.height);
+    }
+
+    return 1;
 }
 
 export fn glk_image_draw_scaled(win: winid_t, image: glui32, val1: glsi32, val2: glsi32, width: glui32, height: glui32) callconv(.c) glui32 {
-    _ = win;
-    _ = image;
-    _ = val1;
-    _ = val2;
-    _ = width;
-    _ = height;
-    return 0;
+    const w: ?*WindowData = @ptrCast(@alignCast(win));
+    if (w == null) return 0;
+
+    const map = blorb_map orelse return 0;
+
+    // Verify image exists
+    var info: giblorb_image_info_t = undefined;
+    const err = giblorb_load_image_info(map, image, &info);
+    if (err != 0) return 0;
+
+    // Flush any pending text
+    flushTextBuffer();
+
+    // Use provided dimensions instead of actual image size
+    if (w.?.win_type == wintype.TextBuffer) {
+        sendImageUpdate(w.?.id, image, val1, width, height);
+    } else if (w.?.win_type == wintype.Graphics) {
+        sendGraphicsImageUpdate(w.?.id, image, val1, val2, width, height);
+    }
+
+    return 1;
 }
 
 export fn glk_window_flow_break(win: winid_t) callconv(.c) void {
-    _ = win;
+    const w: ?*WindowData = @ptrCast(@alignCast(win));
+    if (w == null) return;
+    if (w.?.win_type != wintype.TextBuffer) return;
+
+    flushTextBuffer();
+    sendFlowBreakUpdate(w.?.id);
 }
 
 export fn glk_window_erase_rect(win: winid_t, left: glsi32, top: glsi32, width: glui32, height: glui32) callconv(.c) void {
-    _ = win;
-    _ = left;
-    _ = top;
-    _ = width;
-    _ = height;
+    const w: ?*WindowData = @ptrCast(@alignCast(win));
+    if (w == null) return;
+    if (w.?.win_type != wintype.Graphics) return;
+
+    flushTextBuffer();
+    sendGraphicsEraseUpdate(w.?.id, left, top, width, height);
 }
 
 export fn glk_window_fill_rect(win: winid_t, color: glui32, left: glsi32, top: glsi32, width: glui32, height: glui32) callconv(.c) void {
-    _ = win;
-    _ = color;
-    _ = left;
-    _ = top;
-    _ = width;
-    _ = height;
+    const w: ?*WindowData = @ptrCast(@alignCast(win));
+    if (w == null) return;
+    if (w.?.win_type != wintype.Graphics) return;
+
+    flushTextBuffer();
+    sendGraphicsFillUpdate(w.?.id, color, left, top, width, height);
 }
 
 export fn glk_window_set_background_color(win: winid_t, color: glui32) callconv(.c) void {
-    _ = win;
-    _ = color;
+    const w: ?*WindowData = @ptrCast(@alignCast(win));
+    if (w == null) return;
+    if (w.?.win_type != wintype.Graphics) return;
+
+    flushTextBuffer();
+    sendGraphicsSetColorUpdate(w.?.id, color);
 }
 
 // Sound channel stubs
@@ -2006,11 +2159,24 @@ export fn gidispatch_set_autorestore_registry(
 pub const giblorb_err_t = glui32;
 pub const giblorb_map_t = opaque {};
 
+// Image info structure (matches gi_blorb.h)
+pub const giblorb_image_info_t = extern struct {
+    chunktype: glui32,
+    width: glui32,
+    height: glui32,
+    alttext: ?[*:0]u8,
+};
+
+// Blorb chunk type constants
+const giblorb_ID_PNG: glui32 = 0x504e4720; // 'PNG '
+const giblorb_ID_JPEG: glui32 = 0x4a504547; // 'JPEG'
+
 var blorb_map: ?*giblorb_map_t = null;
 
 // These are provided by gi_blorb.c
 extern fn giblorb_create_map(file: strid_t, newmap: *?*giblorb_map_t) callconv(.c) giblorb_err_t;
 extern fn giblorb_destroy_map(map: ?*giblorb_map_t) callconv(.c) giblorb_err_t;
+extern fn giblorb_load_image_info(map: ?*giblorb_map_t, resnum: glui32, res: *giblorb_image_info_t) callconv(.c) giblorb_err_t;
 
 export fn giblorb_set_resource_map(file: strid_t) callconv(.c) giblorb_err_t {
     if (blorb_map != null) {

@@ -1,15 +1,15 @@
 [submodule "garglk"]
-	path = garglk
+	path = packages/garglk
 	url = ../../garglk/garglk.git
 [submodule "git"]
-	path = git
+	path = packages/git
 	url = ../../DavidKinder/Git.git
 [submodule "glulxe"]
-	path = glulxe
+	path = packages/glulxe
 	url = ../../erkyrath/glulxe.git
 [submodule "hugo"]
-	path = hugo
+	path = packages/hugo
 	url = ../../hugoif/hugo-unix.git
 [submodule "zlib"]
-	path = zlib
+	path = packages/zlib
 	url = https://github.com/madler/zlib.git

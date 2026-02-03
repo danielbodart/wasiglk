@@ -107,7 +107,7 @@ fn buildZlib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     };
 
     lib.addCSourceFiles(.{
-        .root = b.path("zlib"),
+        .root = b.path("../zlib"),
         .files = &.{
             "adler32.c",
             "crc32.c",
@@ -128,7 +128,7 @@ fn buildZlib(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
         .flags = zlib_flags,
     });
 
-    lib.addIncludePath(b.path("zlib"));
+    lib.addIncludePath(b.path("../zlib"));
     lib.linkLibC();
 
     return lib;
@@ -141,7 +141,7 @@ fn buildGlulxe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("glulxe"),
+        .root = b.path("../glulxe"),
         .files = &.{
             "accel.c",   "debugger.c",     "exec.c",   "files.c",
             "float.c",   "funcs.c",        "gestalt.c", "glkop.c",
@@ -156,7 +156,7 @@ fn buildGlulxe(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
 
     addGlkSupport(exe, b, wasi_glk, true);
-    exe.addIncludePath(b.path("glulxe"));
+    exe.addIncludePath(b.path("../glulxe"));
 
     return exe;
 }
@@ -179,7 +179,7 @@ fn buildGit(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.built
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("git"),
+        .root = b.path("../git"),
         .files = &.{
             "accel.c",    "compiler.c", "gestalt.c",  "git.c",
             "glkop.c",    "heap.c",     "memory.c",   "opcodes.c",
@@ -226,7 +226,7 @@ fn buildGit(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.built
     }
 
     addGlkSupport(exe, b, wasi_glk, true);
-    exe.addIncludePath(b.path("git"));
+    exe.addIncludePath(b.path("../git"));
 
     return exe;
 }
@@ -245,7 +245,7 @@ fn buildHugo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     };
 
     exe.addCSourceFiles(.{
-        .root = b.path("hugo/source"),
+        .root = b.path("../hugo/source"),
         .files = &.{
             "he.c",      "heexpr.c",  "hemisc.c",   "heobject.c",
             "heparse.c", "heres.c",   "herun.c",    "heset.c",
@@ -255,14 +255,14 @@ fn buildHugo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("hugo/heglk"),
+        .root = b.path("../hugo/heglk"),
         .files = &.{ "heglk.c", "heglkunix.c" },
         .flags = hugo_flags,
     });
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("hugo/source"));
-    exe.addIncludePath(b.path("hugo/heglk"));
+    exe.addIncludePath(b.path("../hugo/source"));
+    exe.addIncludePath(b.path("../hugo/heglk"));
 
     return exe;
 }
@@ -295,7 +295,7 @@ fn buildScare(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     // Different flags for native vs WASM (WASM needs setjmp/longjmp support)
     if (scare_target.result.cpu.arch == .wasm32) {
         exe.addCSourceFiles(.{
-            .root = b.path("garglk/terps/scare"),
+            .root = b.path("../garglk/terps/scare"),
             .files = scare_files,
             .flags = &.{
                 "-Wall",
@@ -323,7 +323,7 @@ fn buildScare(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         }
     } else {
         exe.addCSourceFiles(.{
-            .root = b.path("garglk/terps/scare"),
+            .root = b.path("../garglk/terps/scare"),
             .files = scare_files,
             .flags = &.{
                 "-Wall",
@@ -335,11 +335,11 @@ fn buildScare(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
     }
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/scare"));
+    exe.addIncludePath(b.path("../garglk/terps/scare"));
 
     // Link zlib (built from source)
     exe.linkLibrary(zlib);
-    exe.addIncludePath(b.path("zlib"));
+    exe.addIncludePath(b.path("../zlib"));
 
     return exe;
 }
@@ -364,7 +364,7 @@ fn buildBocfel(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     };
 
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/bocfel"),
+        .root = b.path("../garglk/terps/bocfel"),
         .files = &.{
             "blorb.cpp",    "branch.cpp",  "dict.cpp",    "glkautosave.cpp",
             "glkstart.cpp", "iff.cpp",     "io.cpp",      "mathop.cpp",
@@ -377,7 +377,7 @@ fn buildBocfel(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/bocfel"));
+    exe.addIncludePath(b.path("../garglk/terps/bocfel"));
     exe.linkLibCpp();
 
     return exe;
@@ -418,7 +418,7 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
 
     // TADS Glk interface layer (mixed C and C++)
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/tads/glk"),
+        .root = b.path("../garglk/terps/tads/glk"),
         .files = &.{
             "memicmp.c",  "osbuffer.c", "osextra.c",  "osglk.c",
             "osglkban.c", "osmisc.c",   "osparse.c",  "t2askf.c",
@@ -428,7 +428,7 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/tads/glk"),
+        .root = b.path("../garglk/terps/tads/glk"),
         .files = &.{
             "osportable.cc", "t23run.cpp", "t3askf.cpp",
             "t3indlg.cpp",   "vmuni_cs.cpp",
@@ -438,7 +438,7 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
 
     // TADS 2 runtime (C)
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/tads/tads2"),
+        .root = b.path("../garglk/terps/tads/tads2"),
         .files = &.{
             "argize.c",   "bif.c",      "bifgdum.c",  "cmap.c",
             "cmd.c",      "dat.c",      "dbgtr.c",    "errmsg.c",
@@ -456,7 +456,7 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
 
     // TADS 3 VM (C++)
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/tads/tads3"),
+        .root = b.path("../garglk/terps/tads/tads3"),
         .files = &.{
             "charmap.cpp",     "md5.cpp",         "resldexe.cpp",    "resload.cpp",
             "sha2.cpp",        "std.cpp",         "tcerr.cpp",       "tcerrmsg.cpp",
@@ -488,9 +488,9 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     });
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/tads/glk"));
-    exe.addIncludePath(b.path("garglk/terps/tads/tads2"));
-    exe.addIncludePath(b.path("garglk/terps/tads/tads3"));
+    exe.addIncludePath(b.path("../garglk/terps/tads/glk"));
+    exe.addIncludePath(b.path("../garglk/terps/tads/tads2"));
+    exe.addIncludePath(b.path("../garglk/terps/tads/tads3"));
     exe.linkLibCpp();
 
     return exe;
@@ -507,7 +507,7 @@ fn buildAgility(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/agility"),
+        .root = b.path("../garglk/terps/agility"),
         .files = &.{
             "agtread.c",    "gamedata.c",   "util.c",       "agxfile.c",
             "auxfile.c",    "filename.c",   "parser.c",     "exec.c",
@@ -527,7 +527,7 @@ fn buildAgility(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.b
     });
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/agility"));
+    exe.addIncludePath(b.path("../garglk/terps/agility"));
 
     return exe;
 }
@@ -541,7 +541,7 @@ fn buildJacl(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     const is_wasi = target.result.os.tag == .wasi;
 
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/jacl"),
+        .root = b.path("../garglk/terps/jacl"),
         .files = &.{
             "jacl.c",       "glk_startup.c", "findroute.c",  "interpreter.c",
             "loader.c",     "glk_saver.c",   "logging.c",    "parser.c",
@@ -573,7 +573,7 @@ fn buildJacl(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     });
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/jacl"));
+    exe.addIncludePath(b.path("../garglk/terps/jacl"));
 
     // Link emulated process clocks for WASI
     if (is_wasi) {
@@ -590,7 +590,7 @@ fn buildLevel9(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/level9"),
+        .root = b.path("../garglk/terps/level9"),
         .files = &.{ "bitmap.c", "level9.c" },
         .flags = &.{
             "-DBITMAP_DECODER",
@@ -604,7 +604,7 @@ fn buildLevel9(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/level9/Glk"),
+        .root = b.path("../garglk/terps/level9/Glk"),
         .files = &.{"glk.c"},
         .flags = &.{
             "-DBITMAP_DECODER",
@@ -617,7 +617,7 @@ fn buildLevel9(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/level9"));
+    exe.addIncludePath(b.path("../garglk/terps/level9"));
 
     return exe;
 }
@@ -629,7 +629,7 @@ fn buildMagnetic(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/magnetic/Generic"),
+        .root = b.path("../garglk/terps/magnetic/Generic"),
         .files = &.{"emu.c"},
         .flags = &.{
             "-DMAGNETIC_GLKUNIX",
@@ -640,7 +640,7 @@ fn buildMagnetic(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
     });
 
     exe.addCSourceFiles(.{
-        .root = b.path("garglk/terps/magnetic/Glk"),
+        .root = b.path("../garglk/terps/magnetic/Glk"),
         .files = &.{"glk.c"},
         .flags = &.{
             "-DMAGNETIC_GLKUNIX",
@@ -651,7 +651,7 @@ fn buildMagnetic(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.
     });
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/magnetic/Generic"));
+    exe.addIncludePath(b.path("../garglk/terps/magnetic/Generic"));
 
     return exe;
 }
@@ -682,7 +682,7 @@ fn buildAdvsys(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
 
     if (advsys_target.result.cpu.arch == .wasm32) {
         exe.addCSourceFiles(.{
-            .root = b.path("garglk/terps/advsys"),
+            .root = b.path("../garglk/terps/advsys"),
             .files = advsys_files,
             .flags = &.{
                 "-D_WASI_EMULATED_SIGNAL",
@@ -695,7 +695,7 @@ fn buildAdvsys(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
         addWasiSetjmp(exe, b);
     } else {
         exe.addCSourceFiles(.{
-            .root = b.path("garglk/terps/advsys"),
+            .root = b.path("../garglk/terps/advsys"),
             .files = advsys_files,
             .flags = &.{
                 "-D_WASI_EMULATED_SIGNAL",
@@ -706,7 +706,7 @@ fn buildAdvsys(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     }
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/advsys"));
+    exe.addIncludePath(b.path("../garglk/terps/advsys"));
 
     return exe;
 }
@@ -748,7 +748,7 @@ fn buildAlan2(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
 
     if (alan2_target.result.cpu.arch == .wasm32) {
         exe.addCSourceFiles(.{
-            .root = b.path("garglk/terps/alan2"),
+            .root = b.path("../garglk/terps/alan2"),
             .files = alan2_files,
             .flags = base_flags ++ &[_][]const u8{
                 "-mllvm", "-wasm-enable-sjlj",
@@ -758,14 +758,14 @@ fn buildAlan2(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         addWasiSetjmp(exe, b);
     } else {
         exe.addCSourceFiles(.{
-            .root = b.path("garglk/terps/alan2"),
+            .root = b.path("../garglk/terps/alan2"),
             .files = alan2_files,
             .flags = base_flags,
         });
     }
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/alan2"));
+    exe.addIncludePath(b.path("../garglk/terps/alan2"));
 
     return exe;
 }
@@ -813,7 +813,7 @@ fn buildAlan3(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
 
     if (alan3_target.result.cpu.arch == .wasm32) {
         exe.addCSourceFiles(.{
-            .root = b.path("garglk/terps/alan3"),
+            .root = b.path("../garglk/terps/alan3"),
             .files = alan3_files,
             .flags = base_flags ++ &[_][]const u8{
                 "-mllvm", "-wasm-enable-sjlj",
@@ -823,14 +823,14 @@ fn buildAlan3(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
         addWasiSetjmp(exe, b);
     } else {
         exe.addCSourceFiles(.{
-            .root = b.path("garglk/terps/alan3"),
+            .root = b.path("../garglk/terps/alan3"),
             .files = alan3_files,
             .flags = base_flags,
         });
     }
 
     addGlkSupport(exe, b, wasi_glk, false);
-    exe.addIncludePath(b.path("garglk/terps/alan3"));
+    exe.addIncludePath(b.path("../garglk/terps/alan3"));
 
     return exe;
 }

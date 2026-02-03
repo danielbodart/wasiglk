@@ -5,16 +5,21 @@ import {copyFile} from "fs/promises";
 process.env.FORCE_COLOR = "1";
 
 export async function clean() {
-    await $`rm -rf zig-out zig-cache .zig-cache`;
+    await $`rm -rf packages/server/zig-out packages/server/zig-cache packages/server/.zig-cache`;
 }
 
 export async function build(...args: string[]) {
+    await buildZig(...args);
+}
+
+// Build Zig interpreters (server package)
+export async function buildZig(...args: string[]) {
     // Default to ReleaseSmall for WASM size optimization
     const optimize = args.includes('-Doptimize=') ? [] : ['-Doptimize=ReleaseSmall'];
-    await $`zig build ${optimize} ${args}`;
+    await $`zig build --build-file packages/server/build.zig --prefix packages/server/zig-out ${optimize} ${args}`;
 
     // Copy built WASM to example directory
-    const wasmPath = 'zig-out/bin/glulxe.wasm';
+    const wasmPath = 'packages/server/zig-out/bin/glulxe.wasm';
     const destPath = 'examples/jspi-browser/glulxe.wasm';
     if (await file(wasmPath).exists()) {
         await copyFile(wasmPath, destPath);
@@ -22,7 +27,27 @@ export async function build(...args: string[]) {
     }
 }
 
+// Build TypeScript client library
+export async function buildClient() {
+    await $`bun run --cwd packages/client build`;
+}
+
+// Run client unit tests
+export async function testClient() {
+    await $`bun test --cwd packages/client`;
+}
+
+// Run all tests (client unit tests + E2E)
 export async function test(...args: string[]) {
+    // Run client unit tests first
+    await testClient();
+
+    // Then run E2E tests
+    await testE2E(...args);
+}
+
+// Run E2E browser tests
+export async function testE2E(...args: string[]) {
     // Start the dev server in background (using Bun)
     const server = spawn({
         cmd: ['bun', 'run', 'examples/jspi-browser/serve.js'],

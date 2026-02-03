@@ -20,7 +20,11 @@
     "playwright": "^1.58.1"
   },
   "scripts": {
-    "build": "zig build -Doptimize=ReleaseSmall",
-    "test": "npx playwright test examples/jspi-browser/test.spec.js"
+    "build": "bun run.ts build",
+    "build:zig": "bun run.ts buildZig",
+    "build:client": "bun run.ts buildClient",
+    "test": "bun run.ts test",
+    "test:client": "bun run.ts testClient",
+    "test:e2e": "bun run.ts testE2E"
   }
 }

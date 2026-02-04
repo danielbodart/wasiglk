@@ -33,6 +33,8 @@ pub const WindowData = struct {
     line_request: bool = false,
     char_request_uni: bool = false,
     line_request_uni: bool = false,
+    mouse_request: bool = false,
+    hyperlink_request: bool = false,
     line_buffer: ?[*]u8 = null,
     line_buffer_uni: ?[*]glui32 = null,
     line_buflen: glui32 = 0,
@@ -125,6 +127,9 @@ pub var client_support: struct {
     graphicswin: bool = false,
     hyperlinks: bool = false,
 } = .{};
+
+// Timer state (global, not per-window)
+pub var timer_interval: ?glui32 = null; // null = no timer, value = interval in milliseconds
 
 // Working directory for glkunix
 pub var workdir: ?[]const u8 = null;

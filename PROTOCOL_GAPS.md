@@ -18,6 +18,8 @@ This document tracks discrepancies between wasiglk's implementation and the offi
 
 **No extra messages:** Only send messages defined in the RemGLK/GlkOte spec. Do not add custom messages for debugging or UI purposes - keep the protocol clean and spec-compliant.
 
+**Commits:** Create a git commit after completing each major item (e.g., after fixing an issue and verifying tests pass). This keeps changes atomic and makes it easier to review or revert if needed.
+
 ---
 
 ## Protocol Deviations (Format/Structure Issues)
@@ -138,41 +140,58 @@ These are cases where wasiglk sends data in a different format than the spec req
 
 These are input events the display can send that wasiglk doesn't handle.
 
-### [ ] 10. Hyperlink Events Not Handled
+### [x] 10. Hyperlink Events Handled (FIXED)
 
-**Location:** `packages/server/src/event.zig`
+**Location:** `packages/server/src/event.zig`, `packages/server/src/style.zig`, `packages/server/src/state.zig`, `packages/client/src/client.ts`
 
-Display can send: `{type: "hyperlink", gen: N, window: ID, value: LINK_VALUE}`
-
-Currently: Hyperlink API exists but events are not processed in `glk_select`.
-
----
-
-### [ ] 11. Mouse Events Not Handled
-
-**Location:** `packages/server/src/event.zig:131-133, 156-158`
-
-Display can send: `{type: "mouse", gen: N, window: ID, x: X, y: Y}`
-
-Currently: `glk_request_mouse_event` and `glk_cancel_mouse_event` are empty stubs.
+**Fixed:** Hyperlink events are now fully implemented:
+1. `WindowData` struct has `hyperlink_request` flag
+2. `glk_request_hyperlink_event(win)` sets the flag for buffer/grid windows
+3. `glk_cancel_hyperlink_event(win)` clears the flag
+4. `glk_select()` handles `{type: "hyperlink", gen: N, window: ID, value: LINK_VALUE}` events
+5. Input requests include `hyperlink: true` when hyperlink input is enabled for the window
+6. Client has `sendHyperlink(windowId, linkValue)` method to send hyperlink clicks
+7. Worker forwards hyperlink events to the interpreter
 
 ---
 
-### [ ] 12. Timer Events Not Handled
+### [x] 11. Mouse Events Handled (FIXED)
 
-**Location:** `packages/server/src/event.zig:104-106`
+**Location:** `packages/server/src/event.zig`, `packages/server/src/state.zig`, `packages/client/src/client.ts`
 
-Display can send: `{type: "timer", gen: N}`
-
-Currently: `glk_request_timer_events` is an empty stub.
+**Fixed:** Mouse events are now fully implemented:
+1. `WindowData` struct has `mouse_request` flag
+2. `glk_request_mouse_event(win)` sets the flag for grid/graphics windows
+3. `glk_cancel_mouse_event(win)` clears the flag
+4. `glk_select()` handles `{type: "mouse", gen: N, window: ID, x: X, y: Y}` events
+5. Input requests include `mouse: true` when mouse input is enabled for the window
+6. Client has `sendMouse(windowId, x, y)` method to send mouse clicks
+7. Worker forwards mouse events to the interpreter
 
 ---
 
-### [ ] 13. Arrange Events Not Handled
+### [x] 12. Timer Events Handled (FIXED)
 
-Display can send: `{type: "arrange", gen: N, metrics: {...}}`
+**Location:** `packages/server/src/event.zig:105-113`, `packages/server/src/protocol.zig`
 
-Currently: No handling for window resize events.
+**Fixed:** Timer events are now fully implemented:
+1. `glk_request_timer_events(millisecs)` stores timer interval in `state.timer_interval`
+2. `glk_select()` checks for timer and includes `timer` field in update message
+3. Client handles timer updates, creates JavaScript interval timer
+4. When timer fires, client sends `{type: "timer", gen: N}` event
+5. Server parses timer events and returns `evtype_Timer` to game
+
+---
+
+### [x] 13. Arrange Events Handled (FIXED)
+
+**Location:** `packages/server/src/event.zig:67-80`, `packages/client/src/client.ts`, `packages/client/src/worker/interpreter.worker.ts`
+
+**Fixed:** Arrange events are now fully implemented:
+1. Client exposes `sendArrange(metrics)` method for notifying the interpreter of window resize
+2. Worker forwards arrange events to the interpreter via stdin
+3. `glk_select()` parses arrange events and updates `state.client_metrics`
+4. Returns `evtype_Arrange` with root window in the event struct
 
 ---
 
@@ -238,13 +257,14 @@ Currently: `partial` field parsed but not used. Should preserve partial input wh
 
 Fields that should be sent from interpreter to display but aren't.
 
-### [ ] 21. Timer Field Not Sent
+### [x] 21. Timer Field Now Sent (FIXED)
 
-**Location:** `packages/server/src/protocol.zig:90-96`
+**Location:** `packages/server/src/protocol.zig:147-193`
 
-**Spec:** Update can include `timer: NUMBER` (set interval) or `timer: null` (cancel).
-
-Currently: Timer field never included in updates.
+**Fixed:** Timer field is now included in update messages:
+- `timer: NUMBER` when timer is active (set interval)
+- `timer: null` when timer is cancelled
+- Field omitted when timer state hasn't changed
 
 ---
 
@@ -294,19 +314,19 @@ Currently: Not sent.
 
 ---
 
-### [ ] 27. Hyperlink Boolean Not Sent
+### [x] 27. Hyperlink Boolean Now Sent (FIXED)
 
 **Spec:** Input requests can include `hyperlink: true` to enable hyperlink input alongside text input.
 
-Currently: Not sent.
+**Fixed:** Input requests now include `hyperlink: true` when the window has an active hyperlink request.
 
 ---
 
-### [ ] 28. Mouse Boolean Not Sent
+### [x] 28. Mouse Boolean Now Sent (FIXED)
 
 **Spec:** Input requests can include `mouse: true` to enable mouse input alongside text input.
 
-Currently: Not sent.
+**Fixed:** Input requests now include `mouse: true` when the window has an active mouse request.
 
 ---
 
@@ -340,10 +360,10 @@ Currently: Field exists but `initlen` parameter is ignored, initial text not sen
 5. ~~Color format (#3)~~ ✅ FIXED
 6. ~~Image alignment format (#4)~~ ✅ FIXED
 7. ~~Graphics dimension fields (#7)~~ ✅ FIXED
-8. Timer events (#12, #21)
-9. Arrange events (#13)
-10. Mouse events (#11)
-11. Hyperlink events (#10)
+8. ~~Timer events (#12, #21)~~ ✅ FIXED - full timer support with glk_request_timer_events, timer field in updates, client-side timer handling
+9. ~~Arrange events (#13)~~ ✅ FIXED - client sendArrange method, worker forwarding, server evtype_Arrange
+10. ~~Mouse events (#11)~~ ✅ FIXED - mouse_request flag, glk_request/cancel_mouse_event, mouse event parsing, client sendMouse method
+11. ~~Hyperlink events (#10)~~ ✅ FIXED - hyperlink_request flag, glk_request/cancel_hyperlink_event, hyperlink event parsing, client sendHyperlink method
 
 ### Low Priority (Polish)
 12. Metrics completeness (#9)
@@ -351,6 +371,60 @@ Currently: Field exists but `initlen` parameter is ignored, initial text not sen
 14. Remaining input fields (#26-30)
 15. Debug features (#17, #25)
 16. External events (#18)
+
+---
+
+## Code Quality Improvements
+
+### [ ] Refactor Zig Protocol to Use Structs Instead of String Concatenation
+
+**Location:** `packages/server/src/protocol.zig`
+
+**Current state:** Many protocol messages are built using manual string formatting and concatenation (e.g., `std.fmt.bufPrint` with inline JSON strings). This is error-prone and hard to maintain.
+
+**Goal:** Define proper Zig structs that match the GlkOte/RemGLK JSON schema, then use Zig's built-in JSON serialization (`std.json`). This will:
+- Document the protocol schema clearly in code
+- Leverage Zig's optional fields and default values for clean struct definitions
+- Eliminate manual string escaping and formatting bugs
+- Make the code more maintainable and self-documenting
+
+**Example of current approach (avoid):**
+```zig
+const json = std.fmt.bufPrint(&buf,
+    \\{{"type":"update","gen":{d},"content":[{{"id":{d},"text":[...]}}]}}
+, .{ generation, win_id }) catch return;
+```
+
+**Example of desired approach:**
+```zig
+const TextParagraph = struct {
+    append: ?bool = null,
+    flowbreak: ?bool = null,
+    content: ?[]const ContentSpan = null,
+};
+
+const ContentUpdate = struct {
+    id: u32,
+    clear: ?bool = null,
+    text: ?[]const TextParagraph = null,
+    lines: ?[]const GridLine = null,
+    draw: ?[]const DrawOperation = null,
+};
+
+const StateUpdate = struct {
+    type: []const u8 = "update",
+    gen: u32,
+    windows: ?[]const WindowUpdate = null,
+    content: ?[]const ContentUpdate = null,
+    input: ?[]const InputRequest = null,
+    timer: ?u32 = null,
+};
+
+// Then serialize with:
+writeJson(StateUpdate{ .gen = generation, .content = &content_updates });
+```
+
+**Note:** Refactor incrementally as we fix other protocol issues. When touching a function that uses string concatenation, convert it to use structs.
 
 ---
 

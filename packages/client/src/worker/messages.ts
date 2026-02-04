@@ -16,6 +16,9 @@ export interface WorkerMetrics {
 export type MainToWorkerMessage =
   | { type: 'init'; interpreter: ArrayBuffer; story: Uint8Array; args: string[]; metrics: WorkerMetrics; storyId: string }
   | { type: 'input'; value: string }
+  | { type: 'arrange'; metrics: WorkerMetrics }
+  | { type: 'mouse'; windowId: number; x: number; y: number }
+  | { type: 'hyperlink'; windowId: number; linkValue: number }
   | { type: 'stop' };
 
 /** Messages from worker to main thread */

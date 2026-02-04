@@ -272,4 +272,136 @@ describe('parseRemGlkUpdate', () => {
       expect(contentUpdate.content[1].text).toBe('Line 2 text');
     }
   });
+
+  test('parses timer update with interval', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 12,
+      timer: 1000, // 1 second
+      input: [{ id: 1, type: 'char' }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const timerUpdate = results.find((u) => u.type === 'timer');
+    expect(timerUpdate?.type).toBe('timer');
+    if (timerUpdate?.type === 'timer') {
+      expect(timerUpdate.interval).toBe(1000);
+    }
+  });
+
+  test('parses timer update with null (cancel)', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 13,
+      timer: null,
+      input: [{ id: 1, type: 'char' }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const timerUpdate = results.find((u) => u.type === 'timer');
+    expect(timerUpdate?.type).toBe('timer');
+    if (timerUpdate?.type === 'timer') {
+      expect(timerUpdate.interval).toBe(null);
+    }
+  });
+
+  test('does not include timer update when timer field is absent', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 14,
+      input: [{ id: 1, type: 'char' }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const timerUpdate = results.find((u) => u.type === 'timer');
+    expect(timerUpdate).toBeUndefined();
+  });
+
+  test('parses input request with mouse flag', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 15,
+      input: [{ id: 1, type: 'char', mouse: true }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const inputUpdate = results.find((u) => u.type === 'input-request');
+    expect(inputUpdate?.type).toBe('input-request');
+    if (inputUpdate?.type === 'input-request') {
+      expect(inputUpdate.inputType).toBe('char');
+      expect(inputUpdate.windowId).toBe(1);
+      expect(inputUpdate.mouse).toBe(true);
+    }
+  });
+
+  test('input request without mouse flag has undefined mouse', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 16,
+      input: [{ id: 1, type: 'line' }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const inputUpdate = results.find((u) => u.type === 'input-request');
+    expect(inputUpdate?.type).toBe('input-request');
+    if (inputUpdate?.type === 'input-request') {
+      expect(inputUpdate.mouse).toBeUndefined();
+    }
+  });
+
+  test('parses input request with hyperlink flag', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 17,
+      input: [{ id: 1, type: 'line', hyperlink: true }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const inputUpdate = results.find((u) => u.type === 'input-request');
+    expect(inputUpdate?.type).toBe('input-request');
+    if (inputUpdate?.type === 'input-request') {
+      expect(inputUpdate.inputType).toBe('line');
+      expect(inputUpdate.windowId).toBe(1);
+      expect(inputUpdate.hyperlink).toBe(true);
+    }
+  });
+
+  test('input request without hyperlink flag has undefined hyperlink', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 18,
+      input: [{ id: 1, type: 'char' }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const inputUpdate = results.find((u) => u.type === 'input-request');
+    expect(inputUpdate?.type).toBe('input-request');
+    if (inputUpdate?.type === 'input-request') {
+      expect(inputUpdate.hyperlink).toBeUndefined();
+    }
+  });
+
+  test('parses input request with both mouse and hyperlink flags', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 19,
+      input: [{ id: 1, type: 'char', mouse: true, hyperlink: true }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const inputUpdate = results.find((u) => u.type === 'input-request');
+    expect(inputUpdate?.type).toBe('input-request');
+    if (inputUpdate?.type === 'input-request') {
+      expect(inputUpdate.mouse).toBe(true);
+      expect(inputUpdate.hyperlink).toBe(true);
+    }
+  });
 });

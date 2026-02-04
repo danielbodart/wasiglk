@@ -32,14 +32,32 @@ pub fn readLineFromStdin(buf: []u8) ?[]u8 {
 // ============== RemGlk Protocol Types ==============
 
 // Input event types (client -> interpreter)
+// Note: The 'value' field can be a string (for line/char input) or a number (for hyperlink events)
+// We use std.json.Value to handle both cases, then extract appropriately in parseInputEvent
+pub const InputEventRaw = struct {
+    type: []const u8,
+    gen: u32 = 0,
+    window: ?u32 = null,
+    value: ?std.json.Value = null, // Can be string (line/char) or integer (hyperlink)
+    metrics: ?Metrics = null,
+    support: ?[]const []const u8 = null, // Features the display supports
+    partial: ?std.json.Value = null,
+    // Mouse event coordinates
+    x: ?i32 = null,
+    y: ?i32 = null,
+};
+
+// Processed input event with typed value fields
 pub const InputEvent = struct {
     type: []const u8,
     gen: u32 = 0,
     window: ?u32 = null,
-    value: ?[]const u8 = null,
+    value: ?[]const u8 = null, // String value for line/char input
+    linkval: ?u32 = null, // Numeric value for hyperlink events
     metrics: ?Metrics = null,
-    support: ?[]const []const u8 = null, // Features the display supports
-    partial: ?std.json.Value = null,
+    // Mouse event coordinates
+    x: ?i32 = null,
+    y: ?i32 = null,
 };
 
 pub const Metrics = struct {
@@ -90,6 +108,8 @@ pub const InputRequest = struct {
     gen: ?u32 = null,
     maxlen: ?u32 = null,
     initial: ?[]const u8 = null,
+    mouse: ?bool = null, // true if mouse input is enabled for this window
+    hyperlink: ?bool = null, // true if hyperlink input is enabled for this window
 };
 
 const StateUpdate = struct {
@@ -98,6 +118,7 @@ const StateUpdate = struct {
     windows: ?[]const WindowUpdate = null,
     content: ?[]const ContentUpdate = null,
     input: ?[]const InputRequest = null,
+    timer: ?u32 = null, // Timer interval in ms, null = not included in output
 };
 
 
@@ -115,6 +136,8 @@ pub var pending_content: [64]ContentUpdate = undefined;
 pub var pending_content_len: usize = 0;
 pub var pending_input: [8]InputRequest = undefined;
 pub var pending_input_len: usize = 0;
+pub var pending_timer: ?glui32 = null; // Timer interval to include in next update
+pub var pending_timer_set: bool = false; // Whether timer field should be included
 
 // ============== JSON Protocol Functions ==============
 
@@ -126,33 +149,95 @@ fn writeJson(value: anytype) void {
 }
 
 pub fn parseInputEvent(json_str: []const u8) ?InputEvent {
-    const parsed = std.json.parseFromSlice(InputEvent, allocator, json_str, .{
+    const parsed = std.json.parseFromSlice(InputEventRaw, allocator, json_str, .{
         .ignore_unknown_fields = true,
     }) catch return null;
     defer parsed.deinit();
+
+    // Extract value based on its type:
+    // - String: line/char input value
+    // - Integer: hyperlink link value
+    var string_value: ?[]const u8 = null;
+    var link_value: ?u32 = null;
+
+    if (parsed.value.value) |v| {
+        switch (v) {
+            .string => |s| {
+                string_value = allocator.dupe(u8, s) catch null;
+            },
+            .integer => |i| {
+                if (i >= 0 and i <= std.math.maxInt(u32)) {
+                    link_value = @intCast(i);
+                }
+            },
+            else => {},
+        }
+    }
 
     // Copy to avoid lifetime issues
     return InputEvent{
         .type = allocator.dupe(u8, parsed.value.type) catch return null,
         .gen = parsed.value.gen,
         .window = parsed.value.window,
-        .value = if (parsed.value.value) |v| allocator.dupe(u8, v) catch null else null,
+        .value = string_value,
+        .linkval = link_value,
         .metrics = parsed.value.metrics,
+        .x = parsed.value.x,
+        .y = parsed.value.y,
     };
 }
 
 pub fn sendUpdate() void {
-    const update = StateUpdate{
-        .gen = generation,
-        .windows = if (pending_windows_len > 0) pending_windows[0..pending_windows_len] else null,
-        .content = if (pending_content_len > 0) pending_content[0..pending_content_len] else null,
-        .input = if (pending_input_len > 0) pending_input[0..pending_input_len] else null,
-    };
-    writeJson(update);
+    // Build update manually to control which fields are included
+    var buf: [32768]u8 = undefined;
+    var offset: usize = 0;
+
+    // Start object
+    const header = std.fmt.bufPrint(buf[offset..], "{{\"type\":\"update\",\"gen\":{d}", .{generation}) catch return;
+    offset += header.len;
+
+    // Add windows if present
+    if (pending_windows_len > 0) {
+        const windows_json = std.fmt.bufPrint(buf[offset..], ",\"windows\":{f}", .{std.json.fmt(pending_windows[0..pending_windows_len], .{})}) catch return;
+        offset += windows_json.len;
+    }
+
+    // Add content if present
+    if (pending_content_len > 0) {
+        const content_json = std.fmt.bufPrint(buf[offset..], ",\"content\":{f}", .{std.json.fmt(pending_content[0..pending_content_len], .{})}) catch return;
+        offset += content_json.len;
+    }
+
+    // Add input if present
+    if (pending_input_len > 0) {
+        const input_json = std.fmt.bufPrint(buf[offset..], ",\"input\":{f}", .{std.json.fmt(pending_input[0..pending_input_len], .{})}) catch return;
+        offset += input_json.len;
+    }
+
+    // Add timer only if explicitly set
+    if (pending_timer_set) {
+        if (pending_timer) |interval| {
+            const timer_json = std.fmt.bufPrint(buf[offset..], ",\"timer\":{d}", .{interval}) catch return;
+            offset += timer_json.len;
+        } else {
+            const timer_null = ",\"timer\":null";
+            @memcpy(buf[offset..][0..timer_null.len], timer_null);
+            offset += timer_null.len;
+        }
+    }
+
+    // Close object
+    buf[offset] = '}';
+    offset += 1;
+
+    writeStdout(buf[0..offset]);
+    writeStdout("\n");
 
     pending_windows_len = 0;
     pending_content_len = 0;
     pending_input_len = 0;
+    pending_timer = null;
+    pending_timer_set = false;
     generation += 1;
 }
 
@@ -194,14 +279,21 @@ pub fn queueContentUpdate(win_id: u32, text: ?[]const u8, clear: bool) void {
     pending_content_len += 1;
 }
 
-pub fn queueInputRequest(win_id: u32, input_type: TextInputType) void {
+pub fn queueInputRequest(win_id: u32, input_type: TextInputType, mouse: bool, hyperlink: bool) void {
     if (pending_input_len >= pending_input.len) return;
     pending_input[pending_input_len] = .{
         .id = win_id,
         .type = input_type,
         .gen = generation,
+        .mouse = if (mouse) true else null,
+        .hyperlink = if (hyperlink) true else null,
     };
     pending_input_len += 1;
+}
+
+pub fn queueTimer(interval: ?glui32) void {
+    pending_timer = interval;
+    pending_timer_set = true;
 }
 
 // ============== Special Update Functions ==============
@@ -532,8 +624,8 @@ pub fn ensureGlkInitialized() void {
             return;
         };
 
-        // Parse the init event
-        const parsed = std.json.parseFromSlice(InputEvent, allocator, line, .{
+        // Parse the init event (use Raw struct to access support array)
+        const parsed = std.json.parseFromSlice(InputEventRaw, allocator, line, .{
             .ignore_unknown_fields = true,
         }) catch {
             sendError("Invalid init message");

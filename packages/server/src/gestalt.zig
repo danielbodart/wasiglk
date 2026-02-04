@@ -41,7 +41,12 @@ export fn glk_gestalt_ext(sel: glui32, val: glui32, arr: ?[*]glui32, arrlen: glu
         gestalt.GraphicsCharInput => return 0,
         gestalt.Sound, gestalt.SoundVolume, gestalt.SoundNotify, gestalt.SoundMusic, gestalt.Sound2 => return 0,
         gestalt.Hyperlinks, gestalt.HyperlinkInput => return 1,
-        gestalt.MouseInput => return 0,
+        gestalt.MouseInput => {
+            // Mouse input is supported for grid and graphics windows
+            const wintype = types.wintype;
+            if (val == wintype.TextGrid or val == wintype.Graphics) return 1;
+            return 0;
+        },
         gestalt.DateTime => return 1,
         gestalt.LineInputEcho, gestalt.LineTerminators => return 1,
         gestalt.LineTerminatorKey => return 0,

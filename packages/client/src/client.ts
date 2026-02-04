@@ -138,6 +138,52 @@ export class WasiGlkClient {
     this.sendInput(char);
   }
 
+  /**
+   * Send an arrange event to notify the interpreter of window resize.
+   * This should be called when the display dimensions change.
+   */
+  sendArrange(metrics: UpdatesConfig): void {
+    this.worker?.postMessage({
+      type: 'arrange',
+      metrics: {
+        width: metrics.width,
+        height: metrics.height,
+        charWidth: metrics.charWidth,
+        charHeight: metrics.charHeight,
+      },
+    } satisfies MainToWorkerMessage);
+  }
+
+  /**
+   * Send a mouse click event to the interpreter.
+   * This should be called when the user clicks in a window that has requested mouse input.
+   * @param windowId - The ID of the window that was clicked
+   * @param x - The x coordinate of the click (in window-relative units)
+   * @param y - The y coordinate of the click (in window-relative units)
+   */
+  sendMouse(windowId: number, x: number, y: number): void {
+    this.worker?.postMessage({
+      type: 'mouse',
+      windowId,
+      x,
+      y,
+    } satisfies MainToWorkerMessage);
+  }
+
+  /**
+   * Send a hyperlink click event to the interpreter.
+   * This should be called when the user clicks a hyperlink in a window that has requested hyperlink input.
+   * @param windowId - The ID of the window containing the hyperlink
+   * @param linkValue - The link value (number) that was set with glk_set_hyperlink
+   */
+  sendHyperlink(windowId: number, linkValue: number): void {
+    this.worker?.postMessage({
+      type: 'hyperlink',
+      windowId,
+      linkValue,
+    } satisfies MainToWorkerMessage);
+  }
+
   stop(): void {
     this.running = false;
     this.blorb?.dispose();

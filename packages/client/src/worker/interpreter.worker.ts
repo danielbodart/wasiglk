@@ -24,6 +24,7 @@ import type { InputEvent, RemGlkUpdate } from '../protocol';
 let inputResolve: ((value: string) => void) | null = null;
 let generation = 0;
 let currentInputRequest: { windowId: number; type: 'line' | 'char' } | null = null;
+let timerIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function post(msg: WorkerToMainMessage): void {
   self.postMessage(msg);
@@ -44,6 +45,41 @@ self.onmessage = async (e: MessageEvent<MainToWorkerMessage>) => {
       value: msg.value,
     };
     resolve(JSON.stringify(inputEvent));
+  } else if (msg.type === 'arrange' && inputResolve) {
+    // Send arrange event to interrupt current input request
+    const resolve = inputResolve;
+    inputResolve = null;
+    resolve(JSON.stringify({
+      type: 'arrange',
+      gen: generation,
+      metrics: {
+        width: msg.metrics.width,
+        height: msg.metrics.height,
+        charwidth: msg.metrics.charWidth,
+        charheight: msg.metrics.charHeight,
+      },
+    }));
+  } else if (msg.type === 'mouse' && inputResolve) {
+    // Send mouse click event to interrupt current input request
+    const resolve = inputResolve;
+    inputResolve = null;
+    resolve(JSON.stringify({
+      type: 'mouse',
+      gen: generation,
+      window: msg.windowId,
+      x: msg.x,
+      y: msg.y,
+    }));
+  } else if (msg.type === 'hyperlink' && inputResolve) {
+    // Send hyperlink click event to interrupt current input request
+    const resolve = inputResolve;
+    inputResolve = null;
+    resolve(JSON.stringify({
+      type: 'hyperlink',
+      gen: generation,
+      window: msg.windowId,
+      value: msg.linkValue,
+    }));
   } else if (msg.type === 'stop') {
     self.close();
   }
@@ -86,6 +122,10 @@ async function runInterpreter(msg: MainToWorkerMessage & { type: 'init' }): Prom
             windowId: update.input[0].id,
             type: update.input[0].type,
           };
+        }
+        // Handle timer updates
+        if (update.timer !== undefined) {
+          handleTimerUpdate(update.timer);
         }
         post({ type: 'update', data: update });
       } catch {
@@ -298,4 +338,31 @@ function addFileToTree(dir: Directory, path: string, file: Inode): void {
   }
 
   current.contents.set(filename, file);
+}
+
+/**
+ * Handle timer updates from the interpreter.
+ * Sets up or cancels a JavaScript interval timer.
+ */
+function handleTimerUpdate(interval: number | null): void {
+  // Clear any existing timer
+  if (timerIntervalId !== null) {
+    clearInterval(timerIntervalId);
+    timerIntervalId = null;
+  }
+
+  // Set up new timer if interval is specified
+  if (interval !== null && interval > 0) {
+    timerIntervalId = setInterval(() => {
+      // Fire timer event if we're waiting for input
+      if (inputResolve) {
+        const resolve = inputResolve;
+        inputResolve = null;
+        resolve(JSON.stringify({
+          type: 'timer',
+          gen: generation,
+        }));
+      }
+    }, interval);
+  }
 }

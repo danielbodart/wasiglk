@@ -1,10 +1,12 @@
 // style.zig - Glk style hint functions
 
 const types = @import("types.zig");
+const state = @import("state.zig");
 
 const glui32 = types.glui32;
 const glsi32 = types.glsi32;
 const winid_t = types.winid_t;
+const WindowData = state.WindowData;
 
 export fn glk_stylehint_set(wintype_val: glui32, styl: glui32, hint: glui32, val: glsi32) callconv(.c) void {
     _ = wintype_val;
@@ -53,10 +55,17 @@ export fn glk_set_hyperlink_stream(str: types.strid_t, linkval: glui32) callconv
     _ = linkval;
 }
 
-export fn glk_request_hyperlink_event(win: winid_t) callconv(.c) void {
-    _ = win;
+export fn glk_request_hyperlink_event(win_opaque: winid_t) callconv(.c) void {
+    const win: ?*WindowData = @ptrCast(@alignCast(win_opaque));
+    if (win == null) return;
+    // Hyperlink events are meaningful for buffer and grid windows
+    if (win.?.win_type == types.wintype.TextBuffer or win.?.win_type == types.wintype.TextGrid) {
+        win.?.hyperlink_request = true;
+    }
 }
 
-export fn glk_cancel_hyperlink_event(win: winid_t) callconv(.c) void {
-    _ = win;
+export fn glk_cancel_hyperlink_event(win_opaque: winid_t) callconv(.c) void {
+    const win: ?*WindowData = @ptrCast(@alignCast(win_opaque));
+    if (win == null) return;
+    win.?.hyperlink_request = false;
 }

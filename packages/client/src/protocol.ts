@@ -27,7 +27,33 @@ export interface CharInputEvent {
   value: string;
 }
 
-export type InputEvent = InitEvent | LineInputEvent | CharInputEvent;
+export interface TimerInputEvent {
+  type: 'timer';
+  gen: number;
+}
+
+export interface ArrangeInputEvent {
+  type: 'arrange';
+  gen: number;
+  metrics: Metrics;
+}
+
+export interface MouseInputEvent {
+  type: 'mouse';
+  gen: number;
+  window: number;
+  x: number;
+  y: number;
+}
+
+export interface HyperlinkInputEvent {
+  type: 'hyperlink';
+  gen: number;
+  window: number;
+  value: number;  // The link value (number) set with glk_set_hyperlink
+}
+
+export type InputEvent = InitEvent | LineInputEvent | CharInputEvent | TimerInputEvent | ArrangeInputEvent | MouseInputEvent | HyperlinkInputEvent;
 
 export interface Metrics {
   width: number;
@@ -43,6 +69,7 @@ export interface RemGlkUpdate {
   windows?: WindowUpdate[];
   content?: ContentUpdate[];
   input?: InputRequest[];
+  timer?: number | null;  // Timer interval in ms, or null to cancel
   message?: string;
 }
 
@@ -143,6 +170,8 @@ export interface InputRequest {
   gen?: number;
   maxlen?: number;
   initial?: string;
+  mouse?: boolean;  // true if mouse input is enabled for this window
+  hyperlink?: boolean;  // true if hyperlink input is enabled for this window
 }
 
 // Client update types (what we yield from the async iterator)
@@ -150,7 +179,8 @@ export type ClientUpdate =
   | ContentClientUpdate
   | InputRequestClientUpdate
   | WindowClientUpdate
-  | ErrorClientUpdate;
+  | ErrorClientUpdate
+  | TimerClientUpdate;
 
 export interface ContentClientUpdate {
   type: 'content';
@@ -184,6 +214,8 @@ export interface InputRequestClientUpdate {
   inputType: 'line' | 'char';
   maxLength?: number;
   initial?: string;
+  mouse?: boolean;  // true if mouse input is enabled for this window
+  hyperlink?: boolean;  // true if hyperlink input is enabled for this window
 }
 
 export interface WindowClientUpdate {
@@ -194,6 +226,11 @@ export interface WindowClientUpdate {
 export interface ErrorClientUpdate {
   type: 'error';
   message: string;
+}
+
+export interface TimerClientUpdate {
+  type: 'timer';
+  interval: number | null;  // Interval in ms, or null to cancel timer
 }
 
 /**
@@ -265,8 +302,18 @@ export function parseRemGlkUpdate(
         inputType: input.type,
         maxLength: input.maxlen,
         initial: input.initial,
+        mouse: input.mouse,
+        hyperlink: input.hyperlink,
       });
     }
+  }
+
+  // Handle timer field (present when timer state changes)
+  if (update.timer !== undefined) {
+    clientUpdates.push({
+      type: 'timer',
+      interval: update.timer,
+    });
   }
 
   return clientUpdates;

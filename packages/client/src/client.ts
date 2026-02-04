@@ -196,6 +196,16 @@ export class WasiGlkClient {
     } satisfies MainToWorkerMessage);
   }
 
+  /**
+   * Send a refresh request to the interpreter.
+   * This requests a full state refresh from the game.
+   */
+  sendRefresh(): void {
+    this.worker?.postMessage({
+      type: 'refresh',
+    } satisfies MainToWorkerMessage);
+  }
+
   stop(): void {
     this.running = false;
     this.blorb?.dispose();

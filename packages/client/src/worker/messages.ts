@@ -20,6 +20,7 @@ export type MainToWorkerMessage =
   | { type: 'mouse'; windowId: number; x: number; y: number }
   | { type: 'hyperlink'; windowId: number; linkValue: number }
   | { type: 'redraw'; windowId?: number }
+  | { type: 'refresh' }
   | { type: 'stop' };
 
 /** Messages from worker to main thread */

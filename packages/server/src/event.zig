@@ -176,6 +176,17 @@ export fn glk_select(event: ?*event_t) callconv(.c) void {
         return;
     }
 
+    // Handle refresh events (full state refresh request)
+    // Per GlkOte spec, this should resend all window and content state
+    // For now, we treat it like an arrange event to trigger state refresh
+    if (std.mem.eql(u8, input_event.type, "refresh")) {
+        event.?.type = evtype.Arrange;
+        event.?.win = @ptrCast(state.root_window);
+        event.?.val1 = 0;
+        event.?.val2 = 0;
+        return;
+    }
+
     // Handle char/line input events - need a window for these
     if (win == null) return;
     const w = win.?;

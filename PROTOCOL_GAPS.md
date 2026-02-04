@@ -206,11 +206,13 @@ Display can send: `{type: "redraw", gen: N, window?: ID}`
 
 ---
 
-### [ ] 15. Refresh Events Not Handled
+### [x] 15. Refresh Events Handled (FIXED)
 
 Display can send: `{type: "refresh", gen: N}`
 
-Currently: No handling for full state refresh requests.
+**Fixed:**
+1. `glk_select()` handles "refresh" events, returning `evtype_Arrange` to trigger state resend
+2. Client has `sendRefresh()` method to request full state refresh
 
 ---
 

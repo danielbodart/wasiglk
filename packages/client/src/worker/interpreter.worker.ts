@@ -89,6 +89,14 @@ self.onmessage = async (e: MessageEvent<MainToWorkerMessage>) => {
       gen: generation,
       window: msg.windowId,
     }));
+  } else if (msg.type === 'refresh' && inputResolve) {
+    // Send refresh request to get full state resent
+    const resolve = inputResolve;
+    inputResolve = null;
+    resolve(JSON.stringify({
+      type: 'refresh',
+      gen: generation,
+    }));
   } else if (msg.type === 'stop') {
     self.close();
   }

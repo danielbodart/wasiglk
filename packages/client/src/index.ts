@@ -12,11 +12,11 @@ export type { ClientConfig, UpdatesConfig } from './client';
 // Protocol types
 export type {
   ClientUpdate,
-  InitClientUpdate,
   ContentClientUpdate,
   InputRequestClientUpdate,
   WindowClientUpdate,
   ErrorClientUpdate,
+  TimerClientUpdate,
   ProcessedContentSpan,
   WindowUpdate,
   ImageAlignment,

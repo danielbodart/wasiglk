@@ -13,6 +13,7 @@ const frefid_t = types.frefid_t;
 const stream_result_t = types.stream_result_t;
 const filemode = types.filemode;
 const seekmode = types.seekmode;
+const wintype = types.wintype;
 const StreamData = state.StreamData;
 const FileRefData = state.FileRefData;
 const WindowData = state.WindowData;
@@ -365,14 +366,19 @@ fn putCharToStream(str: ?*StreamData, ch: u8) void {
     switch (s.stream_type) {
         .window => {
             if (s.win) |w| {
-                // Buffer text output
-                if (state.text_buffer_win != w) {
-                    protocol.flushTextBuffer();
-                    state.text_buffer_win = w;
-                }
-                if (state.text_buffer_len < state.text_buffer.len) {
-                    state.text_buffer[state.text_buffer_len] = ch;
-                    state.text_buffer_len += 1;
+                // For grid windows, write directly to the grid buffer
+                if (w.win_type == wintype.TextGrid) {
+                    putCharToGridWindow(w, ch);
+                } else {
+                    // Buffer text output for other window types
+                    if (state.text_buffer_win != w) {
+                        protocol.flushTextBuffer();
+                        state.text_buffer_win = w;
+                    }
+                    if (state.text_buffer_len < state.text_buffer.len) {
+                        state.text_buffer[state.text_buffer_len] = ch;
+                        state.text_buffer_len += 1;
+                    }
                 }
             }
         },
@@ -393,6 +399,39 @@ fn putCharToStream(str: ?*StreamData, ch: u8) void {
                 }
             }
         },
+    }
+}
+
+// Write a character to a grid window at the current cursor position
+fn putCharToGridWindow(w: *WindowData, ch: u8) void {
+    const grid_buf = w.grid_buffer orelse return;
+    const dirty = w.grid_dirty orelse return;
+
+    // Newline advances to next line
+    if (ch == '\n') {
+        w.cursor_x = 0;
+        if (w.cursor_y + 1 < w.grid_height) {
+            w.cursor_y += 1;
+        }
+        return;
+    }
+
+    // Ignore other control characters
+    if (ch < 0x20) return;
+
+    // Write character if within bounds
+    if (w.cursor_y < w.grid_height and w.cursor_x < w.grid_width) {
+        grid_buf[w.cursor_y][w.cursor_x] = ch;
+        dirty[w.cursor_y] = true;
+
+        // Advance cursor
+        w.cursor_x += 1;
+        if (w.cursor_x >= w.grid_width) {
+            w.cursor_x = 0;
+            if (w.cursor_y + 1 < w.grid_height) {
+                w.cursor_y += 1;
+            }
+        }
     }
 }
 

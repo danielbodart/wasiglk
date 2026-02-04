@@ -314,6 +314,44 @@ Currently: Not implemented.
 
 ---
 
+### [ ] 25b. Hyperlink Output Not Implemented
+
+**Location:** `packages/server/src/style.zig:60-67`
+
+**Spec:** Text spans can include `hyperlink: LINK_VALUE` to make text clickable:
+```json
+{"text": [{"append": true, "content": [{"style": "normal", "text": "click here", "hyperlink": 42}]}]}
+```
+
+**Current:** `glk_set_hyperlink()` and `glk_set_hyperlink_stream()` are no-ops. Games can receive hyperlink clicks via `glk_request_hyperlink_event()`, but cannot create clickable hyperlinks in their output.
+
+**Implementation needed:**
+1. Add `current_hyperlink` field to stream/window state
+2. Modify text buffer flushing to track hyperlink spans
+3. Output text with `hyperlink` field in content spans
+
+---
+
+### [ ] 25c. Style Output Not Implemented
+
+**Location:** `packages/server/src/stream.zig:470-477`
+
+**Spec:** Text spans can include `style` to specify formatting:
+```json
+{"text": [{"append": true, "content": [{"style": "emphasized", "text": "important text"}]}]}
+```
+
+Valid styles: `normal`, `emphasized`, `preformatted`, `header`, `subheader`, `alert`, `note`, `blockquote`, `input`, `user1`, `user2`
+
+**Current:** `glk_set_style()` and `glk_set_style_stream()` are no-ops. All text is output without style information.
+
+**Implementation needed:**
+1. Add `current_style` field to stream/window state
+2. Modify text buffer flushing to track style spans
+3. Output text with `style` field in content spans
+
+---
+
 ## Missing Input Request Fields
 
 Fields that should be included in input requests but aren't.

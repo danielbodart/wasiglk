@@ -119,13 +119,11 @@ These are cases where wasiglk sends data in a different format than the spec req
 
 ---
 
-### [ ] 9. Metrics Object Incomplete
+### [x] 9. Metrics Object Complete (FIXED)
 
-**Location:** `packages/server/src/protocol.zig:44-49`, `packages/client/src/protocol.ts:31-36`
+**Location:** `packages/server/src/protocol.zig`, `packages/client/src/protocol.ts`, `packages/client/src/worker/messages.ts`
 
-**Current fields:** `width`, `height`, `charwidth`, `charheight`
-
-**Spec requires:**
+**Fixed:** Added all GlkOte spec metrics fields:
 - `outspacingx`, `outspacingy` - outer spacing
 - `inspacingx`, `inspacingy` - inner spacing between windows
 - `gridcharwidth`, `gridcharheight` - grid character dimensions
@@ -133,6 +131,8 @@ These are cases where wasiglk sends data in a different format than the spec req
 - `buffercharwidth`, `buffercharheight` - buffer character dimensions
 - `buffermarginx`, `buffermarginy` - buffer margins
 - `graphicsmarginx`, `graphicsmarginy` - graphics margins
+
+Client sends all fields with sensible defaults. Grid/buffer specific char dimensions fall back to generic charwidth/charheight. Spacing and margins default to 0.
 
 ---
 

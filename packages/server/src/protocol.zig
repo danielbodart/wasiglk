@@ -65,10 +65,30 @@ pub const InputEvent = struct {
 };
 
 pub const Metrics = struct {
+    // Overall dimensions
     width: ?u32 = null,
     height: ?u32 = null,
+    // Generic character dimensions (deprecated, use grid/buffer-specific)
     charwidth: ?f64 = null,
     charheight: ?f64 = null,
+    // Outer/inner spacing
+    outspacingx: ?f64 = null,
+    outspacingy: ?f64 = null,
+    inspacingx: ?f64 = null,
+    inspacingy: ?f64 = null,
+    // Grid window character dimensions and margins
+    gridcharwidth: ?f64 = null,
+    gridcharheight: ?f64 = null,
+    gridmarginx: ?f64 = null,
+    gridmarginy: ?f64 = null,
+    // Buffer window character dimensions and margins
+    buffercharwidth: ?f64 = null,
+    buffercharheight: ?f64 = null,
+    buffermarginx: ?f64 = null,
+    buffermarginy: ?f64 = null,
+    // Graphics window margins
+    graphicsmarginx: ?f64 = null,
+    graphicsmarginy: ?f64 = null,
 };
 
 // Output types (interpreter -> client)

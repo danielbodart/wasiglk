@@ -56,10 +56,30 @@ export interface HyperlinkInputEvent {
 export type InputEvent = InitEvent | LineInputEvent | CharInputEvent | TimerInputEvent | ArrangeInputEvent | MouseInputEvent | HyperlinkInputEvent;
 
 export interface Metrics {
+  // Overall dimensions
   width: number;
   height: number;
+  // Generic character dimensions (deprecated, use grid/buffer-specific)
   charwidth?: number;
   charheight?: number;
+  // Outer/inner spacing
+  outspacingx?: number;
+  outspacingy?: number;
+  inspacingx?: number;
+  inspacingy?: number;
+  // Grid window character dimensions and margins
+  gridcharwidth?: number;
+  gridcharheight?: number;
+  gridmarginx?: number;
+  gridmarginy?: number;
+  // Buffer window character dimensions and margins
+  buffercharwidth?: number;
+  buffercharheight?: number;
+  buffermarginx?: number;
+  buffermarginy?: number;
+  // Graphics window margins
+  graphicsmarginx?: number;
+  graphicsmarginy?: number;
 }
 
 // Output updates (interpreter -> client)

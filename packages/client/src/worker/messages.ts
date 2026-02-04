@@ -6,10 +6,30 @@ import type { RemGlkUpdate } from '../protocol';
 
 /** Metrics passed to the worker */
 export interface WorkerMetrics {
+  // Overall dimensions
   width: number;
   height: number;
+  // Generic character dimensions
   charWidth?: number;
   charHeight?: number;
+  // Outer/inner spacing
+  outSpacingX?: number;
+  outSpacingY?: number;
+  inSpacingX?: number;
+  inSpacingY?: number;
+  // Grid window character dimensions and margins
+  gridCharWidth?: number;
+  gridCharHeight?: number;
+  gridMarginX?: number;
+  gridMarginY?: number;
+  // Buffer window character dimensions and margins
+  bufferCharWidth?: number;
+  bufferCharHeight?: number;
+  bufferMarginX?: number;
+  bufferMarginY?: number;
+  // Graphics window margins
+  graphicsMarginX?: number;
+  graphicsMarginY?: number;
 }
 
 /** Messages from main thread to worker */

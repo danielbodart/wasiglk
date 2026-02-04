@@ -26,6 +26,37 @@ let generation = 0;
 let currentInputRequest: { windowId: number; type: 'line' | 'char' } | null = null;
 let timerIntervalId: ReturnType<typeof setInterval> | null = null;
 
+/**
+ * Build metrics object for RemGLK protocol from WorkerMetrics.
+ * Includes all GlkOte spec fields with sensible defaults.
+ */
+function buildMetrics(m: import('./messages').WorkerMetrics): import('../protocol').Metrics {
+  return {
+    width: m.width,
+    height: m.height,
+    charwidth: m.charWidth,
+    charheight: m.charHeight,
+    // Spacing defaults
+    outspacingx: m.outSpacingX ?? 0,
+    outspacingy: m.outSpacingY ?? 0,
+    inspacingx: m.inSpacingX ?? 0,
+    inspacingy: m.inSpacingY ?? 0,
+    // Grid window metrics (use generic char dimensions as fallback)
+    gridcharwidth: m.gridCharWidth ?? m.charWidth,
+    gridcharheight: m.gridCharHeight ?? m.charHeight,
+    gridmarginx: m.gridMarginX ?? 0,
+    gridmarginy: m.gridMarginY ?? 0,
+    // Buffer window metrics (use generic char dimensions as fallback)
+    buffercharwidth: m.bufferCharWidth ?? m.charWidth,
+    buffercharheight: m.bufferCharHeight ?? m.charHeight,
+    buffermarginx: m.bufferMarginX ?? 0,
+    buffermarginy: m.bufferMarginY ?? 0,
+    // Graphics window margins
+    graphicsmarginx: m.graphicsMarginX ?? 0,
+    graphicsmarginy: m.graphicsMarginY ?? 0,
+  };
+}
+
 function post(msg: WorkerToMainMessage): void {
   self.postMessage(msg);
 }
@@ -52,12 +83,7 @@ self.onmessage = async (e: MessageEvent<MainToWorkerMessage>) => {
     resolve(JSON.stringify({
       type: 'arrange',
       gen: generation,
-      metrics: {
-        width: msg.metrics.width,
-        height: msg.metrics.height,
-        charwidth: msg.metrics.charWidth,
-        charheight: msg.metrics.charHeight,
-      },
+      metrics: buildMetrics(msg.metrics),
     }));
   } else if (msg.type === 'mouse' && inputResolve) {
     // Send mouse click event to interrupt current input request
@@ -111,12 +137,7 @@ async function runInterpreter(msg: MainToWorkerMessage & { type: 'init' }): Prom
         return JSON.stringify({
           type: 'init',
           gen: 0,
-          metrics: {
-            width: msg.metrics.width,
-            height: msg.metrics.height,
-            charwidth: msg.metrics.charWidth,
-            charheight: msg.metrics.charHeight,
-          },
+          metrics: buildMetrics(msg.metrics),
           // Declare features the display supports (per GlkOte spec)
           support: ['timer', 'graphics', 'graphicswin', 'hyperlinks'],
         } satisfies InputEvent);

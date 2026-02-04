@@ -314,21 +314,21 @@ Currently: Not implemented.
 
 ---
 
-### [ ] 25b. Hyperlink Output Not Implemented
+### [x] 25b. Hyperlink Output Now Implemented (FIXED)
 
-**Location:** `packages/server/src/style.zig:60-67`
+**Location:** `packages/server/src/style.zig:60-67`, `packages/server/src/protocol.zig`, `packages/server/src/state.zig`
 
 **Spec:** Text spans can include `hyperlink: LINK_VALUE` to make text clickable:
 ```json
 {"text": [{"append": true, "content": [{"style": "normal", "text": "click here", "hyperlink": 42}]}]}
 ```
 
-**Current:** `glk_set_hyperlink()` and `glk_set_hyperlink_stream()` are no-ops. Games can receive hyperlink clicks via `glk_request_hyperlink_event()`, but cannot create clickable hyperlinks in their output.
-
-**Implementation needed:**
-1. Add `current_hyperlink` field to stream/window state
-2. Modify text buffer flushing to track hyperlink spans
-3. Output text with `hyperlink` field in content spans
+**Fixed:**
+1. Added `current_hyperlink` field to global state
+2. `glk_set_hyperlink()` flushes text buffer and updates current hyperlink value
+3. `glk_set_hyperlink_stream()` delegates to `glk_set_hyperlink()` for current stream
+4. `sendBufferTextUpdate()` now includes `hyperlink` field when value is non-zero
+5. Games can now create clickable hyperlinks that work with `glk_request_hyperlink_event()`
 
 ---
 

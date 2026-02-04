@@ -2,11 +2,14 @@
 
 const types = @import("types.zig");
 const state = @import("state.zig");
+const protocol = @import("protocol.zig");
 
 const glui32 = types.glui32;
 const glsi32 = types.glsi32;
 const winid_t = types.winid_t;
+const strid_t = types.strid_t;
 const WindowData = state.WindowData;
+const StreamData = state.StreamData;
 
 export fn glk_stylehint_set(wintype_val: glui32, styl: glui32, hint: glui32, val: glsi32) callconv(.c) void {
     _ = wintype_val;
@@ -58,12 +61,20 @@ export fn glk_set_terminators_line_event(win_opaque: winid_t, keycodes_ptr: ?[*]
 
 // Hyperlinks
 export fn glk_set_hyperlink(linkval: glui32) callconv(.c) void {
-    _ = linkval;
+    // Flush current buffer before changing hyperlink (so previous text keeps its link value)
+    if (state.current_hyperlink != linkval) {
+        protocol.flushTextBuffer();
+        state.current_hyperlink = linkval;
+    }
 }
 
-export fn glk_set_hyperlink_stream(str: types.strid_t, linkval: glui32) callconv(.c) void {
-    _ = str;
-    _ = linkval;
+export fn glk_set_hyperlink_stream(str_opaque: strid_t, linkval: glui32) callconv(.c) void {
+    // For now, only handle setting hyperlink on the current stream
+    // A full implementation would track hyperlink per-stream
+    const str: ?*StreamData = @ptrCast(@alignCast(str_opaque));
+    if (str != null and str == state.current_stream) {
+        glk_set_hyperlink(linkval);
+    }
 }
 
 export fn glk_request_hyperlink_event(win_opaque: winid_t) callconv(.c) void {

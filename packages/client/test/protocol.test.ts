@@ -76,6 +76,29 @@ describe('parseRemGlkUpdate', () => {
     }
   });
 
+  test('parses content with hyperlink text spans (paragraph format)', () => {
+    // GlkOte spec: text spans can have hyperlink field for clickable links
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 3,
+      content: [
+        {
+          id: 1,
+          text: [{ append: true, content: [{ style: 'normal', text: 'click here', hyperlink: 42 }] }],
+        },
+      ],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const contentUpdate = results.find((u) => u.type === 'content');
+    expect(contentUpdate?.type).toBe('content');
+    if (contentUpdate?.type === 'content') {
+      expect(contentUpdate.content[0].text).toBe('click here');
+      expect(contentUpdate.content[0].hyperlink).toBe(42);
+    }
+  });
+
   test('parses content with image special span (paragraph format)', () => {
     const imageUrlResolver = (num: number) =>
       num === 5 ? 'blob:test-image-5' : undefined;

@@ -121,6 +121,9 @@ pub var text_buffer_win: ?*WindowData = null;
 // Current text style (Glk style constants: 0=Normal, 1=Emphasized, 2=Preformatted, etc.)
 pub var current_style: glui32 = 0; // style_Normal
 
+// Current hyperlink value (0 = no hyperlink active)
+pub var current_hyperlink: glui32 = 0;
+
 // Initialization flag and client metrics
 pub var glk_initialized: bool = false;
 pub var client_metrics: struct {

@@ -798,12 +798,13 @@ fn flushGridWindow(win: *state.WindowData) void {
 
 // Send buffer window text with proper paragraph structure per GlkOte spec
 // Format: {"id": N, "text": [{"append": true, "content": [{"style": "normal", "text": "escaped text"}]}]}
+// With hyperlink: {"content": [{"style": "normal", "text": "click me", "hyperlink": 42}]}
 pub fn sendBufferTextUpdate(win_id: u32, text: []const u8, clear: bool) void {
-    sendStyledBufferTextUpdate(win_id, text, clear, state.current_style);
+    sendStyledBufferTextUpdate(win_id, text, clear, state.current_style, state.current_hyperlink);
 }
 
-// Send buffer window text with explicit style
-fn sendStyledBufferTextUpdate(win_id: u32, text: []const u8, clear: bool, style: glui32) void {
+// Send buffer window text with explicit style and hyperlink
+fn sendStyledBufferTextUpdate(win_id: u32, text: []const u8, clear: bool, style: glui32, hyperlink: glui32) void {
     // Flush any other pending updates first
     if (pending_content_len > 0 or pending_windows_len > 0 or pending_input_len > 0) {
         sendUpdate();
@@ -816,16 +817,27 @@ fn sendStyledBufferTextUpdate(win_id: u32, text: []const u8, clear: bool, style:
     const style_str = styleToString(style);
 
     var buf: [32768]u8 = undefined;
-    const json = if (clear)
-        std.fmt.bufPrint(&buf,
-            \\{{"type":"update","gen":{d},"content":[{{"id":{d},"clear":true,"text":[{{"append":true,"content":[{{"style":"{s}","text":"{s}"}}]}}]}}]}}
-        , .{ generation, win_id, style_str, escaped_text }) catch return
-    else
-        std.fmt.bufPrint(&buf,
-            \\{{"type":"update","gen":{d},"content":[{{"id":{d},"text":[{{"append":true,"content":[{{"style":"{s}","text":"{s}"}}]}}]}}]}}
-        , .{ generation, win_id, style_str, escaped_text }) catch return;
+    var offset: usize = 0;
 
-    writeStdout(json);
+    // Build JSON manually to optionally include hyperlink
+    const header = if (clear)
+        std.fmt.bufPrint(buf[offset..], "{{\"type\":\"update\",\"gen\":{d},\"content\":[{{\"id\":{d},\"clear\":true,\"text\":[{{\"append\":true,\"content\":[{{\"style\":\"{s}\",\"text\":\"{s}\"", .{ generation, win_id, style_str, escaped_text }) catch return
+    else
+        std.fmt.bufPrint(buf[offset..], "{{\"type\":\"update\",\"gen\":{d},\"content\":[{{\"id\":{d},\"text\":[{{\"append\":true,\"content\":[{{\"style\":\"{s}\",\"text\":\"{s}\"", .{ generation, win_id, style_str, escaped_text }) catch return;
+    offset += header.len;
+
+    // Add hyperlink field if set
+    if (hyperlink != 0) {
+        const hyper_json = std.fmt.bufPrint(buf[offset..], ",\"hyperlink\":{d}", .{hyperlink}) catch return;
+        offset += hyper_json.len;
+    }
+
+    // Close all brackets
+    const footer = "}}]}}]}}]}}";
+    @memcpy(buf[offset..][0..footer.len], footer);
+    offset += footer.len;
+
+    writeStdout(buf[0..offset]);
     writeStdout("\n");
     generation += 1;
 }

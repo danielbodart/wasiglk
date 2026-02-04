@@ -26,7 +26,7 @@ The combination of Zig, WASI, JSPI, and wasm-opt produces dramatically smaller b
 
 **Why JSPI?** JSPI (JavaScript Promise Integration) is a native browser feature that allows WASM to suspend and resume execution without code transformation, resulting in smaller binaries and better performance.
 
-**Current limitations:** JSPI is cutting-edge technology currently only available in Chrome 131+. Firefox is [actively implementing support](https://bugzilla.mozilla.org/show_bug.cgi?id=1850627). Additionally, some C++ interpreters (Bocfel, TADS) are blocked on upstream wasi-sdk changes for exception handling. In the long term, JSPI should achieve wide browser support and become the preferred approach for async WASM.
+**Current limitations:** JSPI is cutting-edge technology currently only available in Chrome 131+. Firefox has experimental support that can be enabled via `about:config` by setting `javascript.options.wasm_js_promise_integration` to `true`. Additionally, some C++ interpreters (Bocfel, TADS) are blocked on upstream wasi-sdk changes for exception handling. In the long term, JSPI should achieve wide browser support and become the preferred approach for async WASM.
 
 The interpreters use a Glk implementation (in `packages/server/src/`) that communicates via JSON over stdin/stdout, compatible with the RemGlk protocol.
 
@@ -78,6 +78,7 @@ The `@wasiglk/client` package provides a TypeScript client for running interpret
 **Browser Support:**
 - Chrome 131+: JSPI enabled by default
 - Chrome 128-130: Enable `chrome://flags/#enable-experimental-webassembly-jspi`
+- Firefox: Enable `javascript.options.wasm_js_promise_integration` in `about:config`
 
 ```typescript
 import { createClient } from '@wasiglk/client';

@@ -276,11 +276,11 @@ Currently: Not implemented.
 
 ---
 
-### [ ] 23. Exit Field Not Sent
+### [x] 23. Exit Field Now Sent (FIXED)
 
 **Spec:** Update can include `exit: true` when game exits (RemGLK 0.3.2+).
 
-Currently: Not sent on exit.
+**Fixed:** `glk_exit` now always sends a final update with `exit: true` before terminating.
 
 ---
 

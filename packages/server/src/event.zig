@@ -291,8 +291,8 @@ export fn glk_request_line_event_uni(win_opaque: winid_t, buf: ?[*]glui32, maxle
 pub fn glk_exit() callconv(.c) noreturn {
     protocol.flushTextBuffer();
     protocol.flushGridWindows();
-    if (protocol.pending_content_len > 0 or protocol.pending_windows_len > 0) {
-        protocol.sendUpdate();
-    }
+    // Always send a final update with exit: true
+    protocol.queueExit();
+    protocol.sendUpdate();
     std.process.exit(0);
 }

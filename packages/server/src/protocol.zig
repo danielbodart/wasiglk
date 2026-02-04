@@ -140,6 +140,7 @@ pub var pending_input: [8]InputRequest = undefined;
 pub var pending_input_len: usize = 0;
 pub var pending_timer: ?glui32 = null; // Timer interval to include in next update
 pub var pending_timer_set: bool = false; // Whether timer field should be included
+pub var pending_exit: bool = false; // Whether to include exit: true
 
 // ============== JSON Protocol Functions ==============
 
@@ -228,6 +229,13 @@ pub fn sendUpdate() void {
         }
     }
 
+    // Add exit flag if set
+    if (pending_exit) {
+        const exit_true = ",\"exit\":true";
+        @memcpy(buf[offset..][0..exit_true.len], exit_true);
+        offset += exit_true.len;
+    }
+
     // Close object
     buf[offset] = '}';
     offset += 1;
@@ -240,6 +248,7 @@ pub fn sendUpdate() void {
     pending_input_len = 0;
     pending_timer = null;
     pending_timer_set = false;
+    pending_exit = false;
     generation += 1;
 }
 
@@ -299,6 +308,10 @@ pub fn queueInputRequest(win_id: u32, input_type: TextInputType, mouse: bool, hy
 pub fn queueTimer(interval: ?glui32) void {
     pending_timer = interval;
     pending_timer_set = true;
+}
+
+pub fn queueExit() void {
+    pending_exit = true;
 }
 
 // ============== Special Update Functions ==============

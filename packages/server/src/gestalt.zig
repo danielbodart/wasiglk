@@ -57,9 +57,10 @@ export fn glk_gestalt_ext(sel: glui32, val: glui32, arr: ?[*]glui32, arrlen: glu
 
 pub export fn glk_exit() callconv(.c) noreturn {
     protocol.flushTextBuffer();
-    if (protocol.pending_content_len > 0 or protocol.pending_windows_len > 0) {
-        protocol.sendUpdate();
-    }
+    protocol.flushGridWindows();
+    // Always send a final update with exit: true
+    protocol.queueExit();
+    protocol.sendUpdate();
     std.process.exit(0);
 }
 

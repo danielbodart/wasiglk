@@ -94,7 +94,12 @@ export fn glk_select(event: ?*event_t) callconv(.c) void {
             getInitialText(w)
         else
             null;
-        protocol.queueInputRequest(w.id, input_type, w.mouse_request, w.hyperlink_request, xpos, ypos, initial);
+        // Get terminators if line input has them set
+        const terminators: ?[]const glui32 = if ((w.line_request or w.line_request_uni) and w.line_terminators_count > 0)
+            w.line_terminators[0..w.line_terminators_count]
+        else
+            null;
+        protocol.queueInputRequest(w.id, input_type, w.mouse_request, w.hyperlink_request, xpos, ypos, initial, terminators);
     }
 
     // Queue timer if active

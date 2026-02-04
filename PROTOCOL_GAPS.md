@@ -313,13 +313,17 @@ Currently: Not implemented.
 
 Fields that should be included in input requests but aren't.
 
-### [ ] 26. Terminators Array Not Sent
+### [x] 26. Terminators Array Now Sent (FIXED)
 
-**Location:** `packages/server/src/protocol.zig:82-88`
+**Location:** `packages/server/src/protocol.zig`, `packages/server/src/state.zig`, `packages/server/src/style.zig`
 
 **Spec:** Line input can include `terminators: ["escape", "func1", ...]`
 
-Currently: Not sent.
+**Fixed:**
+1. Added `line_terminators` array and `line_terminators_count` to WindowData struct
+2. Implemented `glk_set_terminators_line_event(win, keycodes, count)` to set terminators for a window
+3. Input requests now include `terminators: ["escape", "func1", ...]` array when terminators are set
+4. Added TypeScript types for terminators field in InputRequest and InputRequestClientUpdate
 
 ---
 

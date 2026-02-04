@@ -39,6 +39,9 @@ pub const WindowData = struct {
     line_buffer_uni: ?[*]glui32 = null,
     line_buflen: glui32 = 0,
     line_initlen: glui32 = 0, // Length of pre-filled initial text
+    // Line input terminators (keycodes that should terminate line input)
+    line_terminators: [16]glui32 = undefined,
+    line_terminators_count: glui32 = 0,
     // Retained array rock for line buffer (for dispatch layer copy-back)
     line_buffer_rock: DispatchRock = .{ .num = 0 },
     // Dispatch rock for Glulxe

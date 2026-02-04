@@ -454,4 +454,36 @@ describe('parseRemGlkUpdate', () => {
       expect(inputUpdate.initial).toBe('prefilled text');
     }
   });
+
+  test('parses input request with terminators array', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 23,
+      input: [{ id: 1, type: 'line', terminators: ['escape', 'func1', 'func2'] }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const inputUpdate = results.find((u) => u.type === 'input-request');
+    expect(inputUpdate?.type).toBe('input-request');
+    if (inputUpdate?.type === 'input-request') {
+      expect(inputUpdate.terminators).toEqual(['escape', 'func1', 'func2']);
+    }
+  });
+
+  test('input request without terminators has undefined terminators', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 24,
+      input: [{ id: 1, type: 'line' }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const inputUpdate = results.find((u) => u.type === 'input-request');
+    expect(inputUpdate?.type).toBe('input-request');
+    if (inputUpdate?.type === 'input-request') {
+      expect(inputUpdate.terminators).toBeUndefined();
+    }
+  });
 });

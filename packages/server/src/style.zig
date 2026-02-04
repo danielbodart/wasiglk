@@ -39,10 +39,21 @@ export fn glk_set_echo_line_event(win: winid_t, val: glui32) callconv(.c) void {
     _ = val;
 }
 
-export fn glk_set_terminators_line_event(win: winid_t, keycodes_ptr: ?[*]glui32, count: glui32) callconv(.c) void {
-    _ = win;
-    _ = keycodes_ptr;
-    _ = count;
+export fn glk_set_terminators_line_event(win_opaque: winid_t, keycodes_ptr: ?[*]const glui32, count: glui32) callconv(.c) void {
+    const win: ?*WindowData = @ptrCast(@alignCast(win_opaque));
+    if (win == null) return;
+
+    // Clear existing terminators
+    win.?.line_terminators_count = 0;
+
+    // Copy new terminators (up to the max we can store)
+    if (keycodes_ptr) |keys| {
+        const max_copy: glui32 = @intCast(@min(count, win.?.line_terminators.len));
+        for (0..max_copy) |i| {
+            win.?.line_terminators[i] = keys[i];
+        }
+        win.?.line_terminators_count = max_copy;
+    }
 }
 
 // Hyperlinks

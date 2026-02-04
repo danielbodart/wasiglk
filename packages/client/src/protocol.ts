@@ -174,6 +174,7 @@ export interface InputRequest {
   hyperlink?: boolean;  // true if hyperlink input is enabled for this window
   xpos?: number;  // cursor x position for grid windows
   ypos?: number;  // cursor y position for grid windows
+  terminators?: string[];  // line input terminators (e.g., ["escape", "func1"])
 }
 
 // Client update types (what we yield from the async iterator)
@@ -220,6 +221,7 @@ export interface InputRequestClientUpdate {
   hyperlink?: boolean;  // true if hyperlink input is enabled for this window
   xpos?: number;  // cursor x position for grid windows
   ypos?: number;  // cursor y position for grid windows
+  terminators?: string[];  // line input terminators (e.g., ["escape", "func1"])
 }
 
 export interface WindowClientUpdate {
@@ -310,6 +312,7 @@ export function parseRemGlkUpdate(
         hyperlink: input.hyperlink,
         xpos: input.xpos,
         ypos: input.ypos,
+        terminators: input.terminators,
       });
     }
   }

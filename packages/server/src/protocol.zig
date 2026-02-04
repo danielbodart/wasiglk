@@ -106,6 +106,9 @@ pub const ContentUpdate = struct {
     text: ?[]const u8 = null,
 };
 
+// Maximum terminators we track per input request
+pub const MAX_TERMINATORS = 16;
+
 pub const InputRequest = struct {
     id: u32,
     type: TextInputType,
@@ -116,6 +119,15 @@ pub const InputRequest = struct {
     hyperlink: ?bool = null, // true if hyperlink input is enabled for this window
     xpos: ?u32 = null, // cursor x position for grid windows
     ypos: ?u32 = null, // cursor y position for grid windows
+    // Terminators stored as fixed array with count
+    terminators_data: [MAX_TERMINATORS][]const u8 = undefined,
+    terminators_count: u32 = 0,
+
+    // For JSON serialization: returns slice of terminators or null if none
+    pub fn terminators(self: *const InputRequest) ?[]const []const u8 {
+        if (self.terminators_count == 0) return null;
+        return self.terminators_data[0..self.terminators_count];
+    }
 };
 
 const StateUpdate = struct {
@@ -216,10 +228,73 @@ pub fn sendUpdate() void {
         offset += content_json.len;
     }
 
-    // Add input if present
+    // Add input if present (manually formatted to handle terminators)
     if (pending_input_len > 0) {
-        const input_json = std.fmt.bufPrint(buf[offset..], ",\"input\":{f}", .{std.json.fmt(pending_input[0..pending_input_len], .{})}) catch return;
-        offset += input_json.len;
+        const input_start = ",\"input\":[";
+        @memcpy(buf[offset..][0..input_start.len], input_start);
+        offset += input_start.len;
+
+        for (pending_input[0..pending_input_len], 0..) |req, idx| {
+            if (idx > 0) {
+                buf[offset] = ',';
+                offset += 1;
+            }
+
+            // Build individual input request
+            const type_str = if (req.type == .line) "line" else "char";
+            const req_start = std.fmt.bufPrint(buf[offset..], "{{\"id\":{d},\"type\":\"{s}\",\"gen\":{d}", .{ req.id, type_str, req.gen orelse 0 }) catch return;
+            offset += req_start.len;
+
+            if (req.initial) |initial| {
+                // Escape the initial text
+                var escaped_buf: [512]u8 = undefined;
+                const escaped = jsonEscapeString(initial, &escaped_buf);
+                const initial_json = std.fmt.bufPrint(buf[offset..], ",\"initial\":\"{s}\"", .{escaped}) catch return;
+                offset += initial_json.len;
+            }
+            if (req.mouse != null and req.mouse.?) {
+                const mouse_json = ",\"mouse\":true";
+                @memcpy(buf[offset..][0..mouse_json.len], mouse_json);
+                offset += mouse_json.len;
+            }
+            if (req.hyperlink != null and req.hyperlink.?) {
+                const hyper_json = ",\"hyperlink\":true";
+                @memcpy(buf[offset..][0..hyper_json.len], hyper_json);
+                offset += hyper_json.len;
+            }
+            if (req.xpos) |x| {
+                const xpos_json = std.fmt.bufPrint(buf[offset..], ",\"xpos\":{d}", .{x}) catch return;
+                offset += xpos_json.len;
+            }
+            if (req.ypos) |y| {
+                const ypos_json = std.fmt.bufPrint(buf[offset..], ",\"ypos\":{d}", .{y}) catch return;
+                offset += ypos_json.len;
+            }
+            // Add terminators array if present
+            if (req.terminators_count > 0) {
+                const term_start = ",\"terminators\":[";
+                @memcpy(buf[offset..][0..term_start.len], term_start);
+                offset += term_start.len;
+
+                for (0..req.terminators_count) |ti| {
+                    if (ti > 0) {
+                        buf[offset] = ',';
+                        offset += 1;
+                    }
+                    const term_item = std.fmt.bufPrint(buf[offset..], "\"{s}\"", .{req.terminators_data[ti]}) catch return;
+                    offset += term_item.len;
+                }
+
+                buf[offset] = ']';
+                offset += 1;
+            }
+
+            buf[offset] = '}';
+            offset += 1;
+        }
+
+        buf[offset] = ']';
+        offset += 1;
     }
 
     // Add timer only if explicitly set
@@ -295,9 +370,9 @@ pub fn queueContentUpdate(win_id: u32, text: ?[]const u8, clear: bool) void {
     pending_content_len += 1;
 }
 
-pub fn queueInputRequest(win_id: u32, input_type: TextInputType, mouse: bool, hyperlink: bool, xpos: ?u32, ypos: ?u32, initial: ?[]const u8) void {
+pub fn queueInputRequest(win_id: u32, input_type: TextInputType, mouse: bool, hyperlink: bool, xpos: ?u32, ypos: ?u32, initial: ?[]const u8, terminators: ?[]const glui32) void {
     if (pending_input_len >= pending_input.len) return;
-    pending_input[pending_input_len] = .{
+    var req = InputRequest{
         .id = win_id,
         .type = input_type,
         .gen = generation,
@@ -307,6 +382,21 @@ pub fn queueInputRequest(win_id: u32, input_type: TextInputType, mouse: bool, hy
         .ypos = ypos,
         .initial = initial,
     };
+
+    // Convert keycodes to terminator strings
+    if (terminators) |terms| {
+        var count: u32 = 0;
+        for (terms) |kc| {
+            if (count >= MAX_TERMINATORS) break;
+            if (keycodeToTerminator(kc)) |term_str| {
+                req.terminators_data[count] = term_str;
+                count += 1;
+            }
+        }
+        req.terminators_count = count;
+    }
+
+    pending_input[pending_input_len] = req;
     pending_input_len += 1;
 }
 
@@ -320,6 +410,27 @@ pub fn queueExit() void {
 }
 
 // ============== Special Update Functions ==============
+
+// Convert keycode to terminator string name per GlkOte spec
+pub fn keycodeToTerminator(kc: glui32) ?[]const u8 {
+    const keycode = types.keycode;
+    return switch (kc) {
+        keycode.Escape => "escape",
+        keycode.Func1 => "func1",
+        keycode.Func2 => "func2",
+        keycode.Func3 => "func3",
+        keycode.Func4 => "func4",
+        keycode.Func5 => "func5",
+        keycode.Func6 => "func6",
+        keycode.Func7 => "func7",
+        keycode.Func8 => "func8",
+        keycode.Func9 => "func9",
+        keycode.Func10 => "func10",
+        keycode.Func11 => "func11",
+        keycode.Func12 => "func12",
+        else => null,
+    };
+}
 
 // Alignment value to string mapping per GlkOte spec
 fn alignmentToString(alignment: glsi32) []const u8 {

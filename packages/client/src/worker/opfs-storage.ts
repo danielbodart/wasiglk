@@ -78,10 +78,11 @@ export class OpfsStorage {
       this.rootDir = await wasiglkDir.getDirectoryHandle(this.storyId, { create: true });
 
       // Recursively load all files from OPFS
-      await this.loadDirectory(this.rootDir, rootContents);
+      await this.loadDirectory(this.rootDir, rootContents, '');
 
       const fileCount = this.openHandles.length;
       console.log(`[opfs] Loaded ${fileCount} existing files for story ${this.storyId}`);
+      console.log(`[opfs] Root contents:`, [...rootContents.keys()]);
     } catch (err) {
       console.error('[opfs] Initialization failed:', err);
       throw err;
@@ -96,23 +97,27 @@ export class OpfsStorage {
   private async loadDirectory(
     dirHandle: FileSystemDirectoryHandle,
     contents: Map<string, Inode>,
+    pathPrefix: string,
   ): Promise<void> {
     for await (const [name, handle] of dirHandle.entries()) {
+      const fullPath = pathPrefix ? `${pathPrefix}/${name}` : name;
       if (handle.kind === 'file') {
         try {
           const fileHandle = handle as FileSystemFileHandle;
           const syncHandle = await fileHandle.createSyncAccessHandle();
           this.openHandles.push(syncHandle);
           contents.set(name, new SyncOPFSFile(syncHandle));
+          console.log(`[opfs] Loaded file: ${fullPath}`);
         } catch (err) {
-          console.warn(`[opfs] Failed to open existing file ${name}:`, err);
+          console.warn(`[opfs] Failed to open existing file ${fullPath}:`, err);
         }
       } else if (handle.kind === 'directory') {
         // Recursively load subdirectory
         const subDirHandle = handle as FileSystemDirectoryHandle;
         const subContents = new Map<string, Inode>();
-        await this.loadDirectory(subDirHandle, subContents);
+        await this.loadDirectory(subDirHandle, subContents, fullPath);
         contents.set(name, new Directory(subContents));
+        console.log(`[opfs] Loaded directory: ${fullPath} with ${subContents.size} entries`);
       }
     }
   }

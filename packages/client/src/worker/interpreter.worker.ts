@@ -208,6 +208,7 @@ function wrapWithJSPI(
 
     // Decode path string
     const path = new TextDecoder().decode(bytes.slice(pathPtr, pathPtr + pathLen));
+    console.log(`[wasi] path_open: fd=${fd} path="${path}" oflags=${oflags}`);
 
     // Check if creating a file that should be persisted
     const shouldPersist =

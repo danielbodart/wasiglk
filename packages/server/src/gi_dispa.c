@@ -11,6 +11,7 @@
 
 #include "glk.h"
 #include "gi_dispa.h"
+#include <stdio.h>
 
 #ifndef NULL
 #define NULL 0
@@ -847,11 +848,11 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
                 arglist[2].uint);
             break;
         case 0x0043: /* stream_open_memory */
-            if (arglist[0].ptrflag) 
-                arglist[6].opaqueref = glk_stream_open_memory(arglist[1].array, 
+            if (arglist[0].ptrflag)
+                arglist[6].opaqueref = glk_stream_open_memory(arglist[1].array,
                     arglist[2].uint, arglist[3].uint, arglist[4].uint);
             else
-                arglist[4].opaqueref = glk_stream_open_memory(NULL, 
+                arglist[4].opaqueref = glk_stream_open_memory(NULL,
                     0, arglist[1].uint, arglist[2].uint);
             break;
         case 0x0044: /* stream_close */
@@ -887,8 +888,10 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
                 arglist[1].charstr, arglist[2].uint);
             break;
         case 0x0062: /* fileref_create_by_prompt */
-            arglist[4].opaqueref = glk_fileref_create_by_prompt(arglist[0].uint, 
+            fprintf(stderr, "[dispa] calling fileref_create_by_prompt usage=%d fmode=%d\n", arglist[0].uint, arglist[1].uint);
+            arglist[4].opaqueref = glk_fileref_create_by_prompt(arglist[0].uint,
                 arglist[1].uint, arglist[2].uint);
+            fprintf(stderr, "[dispa] fileref_create_by_prompt returned %p\n", arglist[4].opaqueref);
             break;
         case 0x0063: /* fileref_destroy */
             glk_fileref_destroy(arglist[0].opaqueref);

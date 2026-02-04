@@ -34,6 +34,8 @@ export fn glkunix_set_base_file(filename: ?[*:0]const u8) callconv(.c) void {
 
 export fn glkunix_stream_open_pathname_gen(pathname: ?[*:0]const u8, writemode: glui32, textmode: glui32, rock: glui32) callconv(.c) strid_t {
     if (pathname == null) return null;
+    const path_span = std.mem.span(pathname.?);
+    std.debug.print("[glk] glkunix_stream_open_pathname_gen: '{s}' write={d}\n", .{ path_span, writemode });
 
     const fref = fileref.glk_fileref_create_by_name(
         (if (textmode != 0) fileusage.TextMode else fileusage.BinaryMode) | fileusage.Data,

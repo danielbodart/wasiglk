@@ -45,6 +45,7 @@ export fn glk_fileref_create_temp(usage: glui32, rock: glui32) callconv(.c) fref
 pub export fn glk_fileref_create_by_name(usage: glui32, name: ?[*:0]const u8, rock: glui32) callconv(.c) frefid_t {
     const name_ptr = name orelse return null;
     const name_span = std.mem.span(name_ptr);
+    std.debug.print("[glk] fileref_create_by_name: usage={d} name='{s}'\n", .{ usage, name_span });
     const filename_copy = allocator.dupe(u8, name_span) catch return null;
 
     const fref = allocator.create(FileRefData) catch {
@@ -74,12 +75,18 @@ pub export fn glk_fileref_create_by_name(usage: glui32, name: ?[*:0]const u8, ro
 }
 
 export fn glk_fileref_create_by_prompt(usage: glui32, fmode: glui32, rock: glui32) callconv(.c) frefid_t {
-    _ = usage;
-    _ = fmode;
-    _ = rock;
-    // TODO: Implement using RemGlk specialinput protocol
-    // For now, return null (file operations not supported via prompt)
-    return null;
+    // Generate a default filename based on usage type
+    // TODO: Implement proper RemGlk specialinput protocol for user prompts
+    const filename: [*:0]const u8 = switch (usage & fileusage.TypeMask) {
+        fileusage.SavedGame => "save.glksave",
+        fileusage.Transcript => "transcript.txt",
+        fileusage.InputRecord => "input.txt",
+        else => "data.glkdata",
+    };
+
+    std.debug.print("[glk] fileref_create_by_prompt: usage={d} fmode={d} -> '{s}'\n", .{ usage, fmode, filename });
+
+    return glk_fileref_create_by_name(usage, filename, rock);
 }
 
 export fn glk_fileref_create_from_fileref(usage: glui32, fref_opaque: frefid_t, rock: glui32) callconv(.c) frefid_t {

@@ -486,4 +486,59 @@ describe('parseRemGlkUpdate', () => {
       expect(inputUpdate.terminators).toBeUndefined();
     }
   });
+
+  test('parses disable flag when true', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 25,
+      disable: true,
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const disableUpdate = results.find((u) => u.type === 'disable');
+    expect(disableUpdate?.type).toBe('disable');
+    if (disableUpdate?.type === 'disable') {
+      expect(disableUpdate.disabled).toBe(true);
+    }
+  });
+
+  test('does not include disable update when disable field is absent', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 26,
+      input: [{ id: 1, type: 'char' }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const disableUpdate = results.find((u) => u.type === 'disable');
+    expect(disableUpdate).toBeUndefined();
+  });
+
+  test('parses exit flag when true', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 27,
+      exit: true,
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const exitUpdate = results.find((u) => u.type === 'exit');
+    expect(exitUpdate?.type).toBe('exit');
+  });
+
+  test('does not include exit update when exit field is absent', () => {
+    const update: RemGlkUpdate = {
+      type: 'update',
+      gen: 28,
+      input: [{ id: 1, type: 'char' }],
+    };
+
+    const results = parseRemGlkUpdate(update, noopResolver);
+
+    const exitUpdate = results.find((u) => u.type === 'exit');
+    expect(exitUpdate).toBeUndefined();
+  });
 });

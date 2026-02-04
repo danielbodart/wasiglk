@@ -90,6 +90,8 @@ export interface RemGlkUpdate {
   content?: ContentUpdate[];
   input?: InputRequest[];
   timer?: number | null;  // Timer interval in ms, or null to cancel
+  disable?: boolean;  // true when no input is expected (game is processing)
+  exit?: boolean;  // true when game has exited
   message?: string;
 }
 
@@ -203,7 +205,9 @@ export type ClientUpdate =
   | InputRequestClientUpdate
   | WindowClientUpdate
   | ErrorClientUpdate
-  | TimerClientUpdate;
+  | TimerClientUpdate
+  | DisableClientUpdate
+  | ExitClientUpdate;
 
 export interface ContentClientUpdate {
   type: 'content';
@@ -257,6 +261,16 @@ export interface ErrorClientUpdate {
 export interface TimerClientUpdate {
   type: 'timer';
   interval: number | null;  // Interval in ms, or null to cancel timer
+}
+
+export interface DisableClientUpdate {
+  type: 'disable';
+  disabled: boolean;  // true when input should be disabled
+}
+
+export interface ExitClientUpdate {
+  type: 'exit';
+  // Game has exited
 }
 
 /**
@@ -342,6 +356,21 @@ export function parseRemGlkUpdate(
     clientUpdates.push({
       type: 'timer',
       interval: update.timer,
+    });
+  }
+
+  // Handle disable field (game is processing, no input expected)
+  if (update.disable !== undefined) {
+    clientUpdates.push({
+      type: 'disable',
+      disabled: update.disable,
+    });
+  }
+
+  // Handle exit field (game has exited)
+  if (update.exit) {
+    clientUpdates.push({
+      type: 'exit',
     });
   }
 

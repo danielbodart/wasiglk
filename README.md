@@ -15,7 +15,7 @@ wasiglk is inspired by [emglken](https://github.com/curiousdannii/emglken), whic
 
 ### WASM Binary Size Comparison
 
-The combination of Zig, JSPI (no Asyncify overhead), and wasm-opt produces dramatically smaller binaries:
+The combination of Zig, WASI, JSPI, and wasm-opt produces dramatically smaller binaries:
 
 | Interpreter | emglken | wasiglk | Reduction |
 |-------------|---------|---------|-----------|
@@ -24,9 +24,9 @@ The combination of Zig, JSPI (no Asyncify overhead), and wasm-opt produces drama
 | hugo.wasm | 1.12 MB | 177 KB | **84% smaller** |
 | scare.wasm | 1.82 MB | 423 KB | **77% smaller** |
 
-**Why JSPI?** Asyncify transforms the entire WASM binary to support suspending execution, which increases code size and has performance overhead. JSPI is a native browser feature that allows WASM to suspend without transformation, resulting in smaller binaries and better performance.
+**Why JSPI?** JSPI (JavaScript Promise Integration) is a native browser feature that allows WASM to suspend and resume execution without code transformation, resulting in smaller binaries and better performance.
 
-**Current limitations:** JSPI is cutting-edge technology currently only available in Chrome 131+. Firefox is actively implementing support. Additionally, some C++ interpreters (Bocfel, TADS) are blocked on upstream wasi-sdk changes for exception handling. In the long term, JSPI should achieve wide browser support and become the preferred approach for async WASM.
+**Current limitations:** JSPI is cutting-edge technology currently only available in Chrome 131+. Firefox is [actively implementing support](https://bugzilla.mozilla.org/show_bug.cgi?id=1850627). Additionally, some C++ interpreters (Bocfel, TADS) are blocked on upstream wasi-sdk changes for exception handling. In the long term, JSPI should achieve wide browser support and become the preferred approach for async WASM.
 
 The interpreters use a Glk implementation (in `packages/server/src/`) that communicates via JSON over stdin/stdout, compatible with the RemGlk protocol.
 

@@ -38,7 +38,7 @@ pub const InputEventRaw = struct {
     type: []const u8,
     gen: u32 = 0,
     window: ?u32 = null,
-    value: ?std.json.Value = null, // Can be string (line/char) or integer (hyperlink)
+    value: ?std.json.Value = null, // Can be string (line/char/specialresponse) or integer (hyperlink)
     metrics: ?Metrics = null,
     support: ?[]const []const u8 = null, // Features the display supports
     partial: ?std.json.Value = null,
@@ -47,6 +47,8 @@ pub const InputEventRaw = struct {
     y: ?i32 = null,
     // Line input terminator (e.g., "escape", "func1")
     terminator: ?[]const u8 = null,
+    // Special response type (e.g., "fileref_prompt")
+    response: ?[]const u8 = null,
 };
 
 // Processed input event with typed value fields
@@ -255,6 +257,14 @@ pub const TimerValue = union(enum) {
     }
 };
 
+// Special input request for file dialogs (GlkOte spec)
+pub const SpecialInput = struct {
+    type: []const u8 = "fileref_prompt",
+    filemode: []const u8, // "read", "write", "readwrite", "writeappend"
+    filetype: []const u8, // "save", "data", "transcript", "command"
+    gameid: ?[]const u8 = null, // Optional game ID for filtering saves
+};
+
 // Full state update message (GlkOte spec)
 pub const StateUpdateJson = struct {
     type: []const u8 = "update",
@@ -262,6 +272,7 @@ pub const StateUpdateJson = struct {
     windows: ?[]const WindowUpdate = null,
     content: ?[]const ContentUpdateJson = null,
     input: ?[]const InputRequestJson = null,
+    specialinput: ?SpecialInput = null, // File dialog request (GlkOte spec)
     timer: ?TimerValue = null, // Timer interval or null to cancel (omit if not changed)
     disable: ?bool = null, // true when no input expected
     exit: ?bool = null, // true when game exits
@@ -870,4 +881,87 @@ pub fn ensureGlkInitialized() void {
         // Per RemGLK spec: interpreter responds with "update", not "init"
         // The first sendUpdate() call from the game will serve as the response
     }
+}
+
+// ============== File Dialog Support ==============
+
+// Convert Glk filemode to GlkOte spec string
+pub fn filemodeToString(fmode: glui32) []const u8 {
+    const fm = types.filemode;
+    return switch (fmode) {
+        fm.Read => "read",
+        fm.Write => "write",
+        fm.ReadWrite => "readwrite",
+        fm.WriteAppend => "writeappend",
+        else => "read",
+    };
+}
+
+// Convert Glk fileusage to GlkOte spec filetype string
+pub fn fileusageToType(usage: glui32) []const u8 {
+    const fu = types.fileusage;
+    return switch (usage & fu.TypeMask) {
+        fu.SavedGame => "save",
+        fu.Transcript => "transcript",
+        fu.InputRecord => "command",
+        else => "data",
+    };
+}
+
+// Send a specialinput request and wait for the response (per GlkOte spec)
+// Returns the selected filename, or null if the user cancelled
+// This function blocks via stdin read (JSPI suspends in browser)
+pub fn sendSpecialInputAndWait(fmode: glui32, usage: glui32) ?[]const u8 {
+    // Flush any pending buffers first
+    flushTextBuffer();
+    flushGridWindows();
+
+    // Build the specialinput update
+    const special = SpecialInput{
+        .filemode = filemodeToString(fmode),
+        .filetype = fileusageToType(usage),
+    };
+
+    const update = StateUpdateJson{
+        .gen = generation,
+        .specialinput = special,
+        .disable = true, // No regular input expected
+    };
+
+    // Serialize and send
+    var buf: [4096]u8 = undefined;
+    const json = std.fmt.bufPrint(&buf, "{f}", .{std.json.fmt(update, .{ .emit_null_optional_fields = false })}) catch return null;
+    writeStdout(json);
+    writeStdout("\n");
+    generation += 1;
+
+    // Wait for response (JSPI suspends here in browser)
+    var response_buf: [4096]u8 = undefined;
+    const response_line = readLineFromStdin(&response_buf) orelse return null;
+
+    // Parse the response
+    const parsed = std.json.parseFromSlice(InputEventRaw, allocator, response_line, .{
+        .ignore_unknown_fields = true,
+    }) catch return null;
+    defer parsed.deinit();
+
+    const event = parsed.value;
+
+    // Must be a specialresponse with response="fileref_prompt"
+    if (!std.mem.eql(u8, event.type, "specialresponse")) return null;
+    if (event.response == null or !std.mem.eql(u8, event.response.?, "fileref_prompt")) return null;
+
+    // Extract the filename from value (string or null)
+    if (event.value) |val| {
+        switch (val) {
+            .string => |s| {
+                // Return a copy of the filename
+                return allocator.dupe(u8, s) catch null;
+            },
+            .null => return null,
+            else => return null,
+        }
+    }
+
+    return null;
 }

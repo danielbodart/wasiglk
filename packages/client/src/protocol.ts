@@ -82,6 +82,14 @@ export interface Metrics {
   graphicsmarginy?: number;
 }
 
+// Special input request for file dialogs (GlkOte spec)
+export interface SpecialInput {
+  type: 'fileref_prompt';
+  filemode: 'read' | 'write' | 'readwrite' | 'writeappend';
+  filetype: 'save' | 'data' | 'transcript' | 'command';
+  gameid?: string;
+}
+
 // Output updates (interpreter -> client)
 export interface RemGlkUpdate {
   type: 'update' | 'error';
@@ -89,6 +97,7 @@ export interface RemGlkUpdate {
   windows?: WindowUpdate[];
   content?: ContentUpdate[];
   input?: InputRequest[];
+  specialinput?: SpecialInput;  // File dialog request (GlkOte spec)
   timer?: number | null;  // Timer interval in ms, or null to cancel
   disable?: boolean;  // true when no input is expected (game is processing)
   exit?: boolean;  // true when game has exited
@@ -209,7 +218,8 @@ export type ClientUpdate =
   | TimerClientUpdate
   | DisableClientUpdate
   | ExitClientUpdate
-  | DebugOutputClientUpdate;
+  | DebugOutputClientUpdate
+  | SpecialInputClientUpdate;
 
 export interface ContentClientUpdate {
   type: 'content';
@@ -278,6 +288,14 @@ export interface ExitClientUpdate {
 export interface DebugOutputClientUpdate {
   type: 'debug-output';
   messages: string[];  // Array of debug messages from the interpreter
+}
+
+export interface SpecialInputClientUpdate {
+  type: 'special-input';
+  inputType: 'fileref_prompt';
+  filemode: 'read' | 'write' | 'readwrite' | 'writeappend';
+  filetype: 'save' | 'data' | 'transcript' | 'command';
+  gameid?: string;
 }
 
 /**
@@ -386,6 +404,17 @@ export function parseRemGlkUpdate(
     clientUpdates.push({
       type: 'debug-output',
       messages: update.debugoutput,
+    });
+  }
+
+  // Handle special input (file dialogs, per GlkOte spec)
+  if (update.specialinput) {
+    clientUpdates.push({
+      type: 'special-input',
+      inputType: update.specialinput.type,
+      filemode: update.specialinput.filemode,
+      filetype: update.specialinput.filetype,
+      gameid: update.specialinput.gameid,
     });
   }
 

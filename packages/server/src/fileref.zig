@@ -75,18 +75,45 @@ pub export fn glk_fileref_create_by_name(usage: glui32, name: ?[*:0]const u8, ro
 }
 
 export fn glk_fileref_create_by_prompt(usage: glui32, fmode: glui32, rock: glui32) callconv(.c) frefid_t {
-    // Generate a default filename based on usage type
-    // TODO: Implement proper RemGlk specialinput protocol for user prompts
-    const filename: [*:0]const u8 = switch (usage & fileusage.TypeMask) {
-        fileusage.SavedGame => "save.glksave",
-        fileusage.Transcript => "transcript.txt",
-        fileusage.InputRecord => "input.txt",
-        else => "data.glkdata",
+    const protocol = @import("protocol.zig");
+
+    std.debug.print("[glk] fileref_create_by_prompt: usage={d} fmode={d} - sending specialinput\n", .{ usage, fmode });
+
+    // Send specialinput and wait for user response (JSPI suspends here)
+    const filename = protocol.sendSpecialInputAndWait(fmode, usage) orelse {
+        std.debug.print("[glk] fileref_create_by_prompt: user cancelled or error\n", .{});
+        return null; // User cancelled
+    };
+    defer allocator.free(filename);
+
+    std.debug.print("[glk] fileref_create_by_prompt: got filename '{s}'\n", .{filename});
+
+    // Create the fileref with the returned filename
+    const fref = allocator.create(FileRefData) catch return null;
+    const filename_copy = allocator.dupe(u8, filename) catch {
+        allocator.destroy(fref);
+        return null;
     };
 
-    std.debug.print("[glk] fileref_create_by_prompt: usage={d} fmode={d} -> '{s}'\n", .{ usage, fmode, filename });
+    fref.* = FileRefData{
+        .id = state.fileref_id_counter,
+        .rock = rock,
+        .filename = filename_copy,
+        .usage = usage,
+        .textmode = (usage & fileusage.TextMode) != 0,
+    };
+    state.fileref_id_counter += 1;
 
-    return glk_fileref_create_by_name(usage, filename, rock);
+    fref.next = state.fileref_list;
+    if (state.fileref_list) |list| list.prev = fref;
+    state.fileref_list = fref;
+
+    // Register with dispatch system
+    if (dispatch.object_register_fn) |register_fn| {
+        fref.dispatch_rock = register_fn(@ptrCast(fref), dispatch.gidisp_Class_Fileref);
+    }
+
+    return @ptrCast(fref);
 }
 
 export fn glk_fileref_create_from_fileref(usage: glui32, fref_opaque: frefid_t, rock: glui32) callconv(.c) frefid_t {

@@ -221,11 +221,22 @@ Display can send: `{type: "refresh", gen: N}`
 
 ---
 
-### [ ] 16. Special Response Events Not Handled
+### [x] 16. Special Response Events Handled (FIXED)
 
 Display can send: `{type: "specialresponse", response: "fileref_prompt", value: FILEREF|null}`
 
-Currently: File dialogs not implemented.
+**Fixed:** File dialogs are now implemented using the File System Access API:
+1. Server sends `specialinput` with `type: "fileref_prompt"`, `filemode`, and `filetype`
+2. Worker receives update and posts `fileDialogRequest` to main thread
+3. Client shows native file picker:
+   - `write` mode: `showSaveFilePicker()` for creating/overwriting files
+   - `read`/`readwrite`/`writeappend` modes: `showOpenFilePicker()` for existing files
+4. Selected `FileSystemFileHandle` is sent back to worker via `fileDialogResult`
+5. Worker mounts file directly using `SyncOPFSFile` with `createSyncAccessHandle()`
+6. Worker sends `specialresponse` with the file path back to interpreter
+7. Server creates fileref with returned path; Glk file operations work directly on the external file
+
+All four Glk file modes are supported (`read`, `write`, `readwrite`, `writeappend`).
 
 ---
 
@@ -303,11 +314,16 @@ Fields that should be sent from interpreter to display but aren't.
 
 ---
 
-### [ ] 24. Special Input Requests Not Sent
+### [x] 24. Special Input Requests Now Sent (FIXED)
 
 **Spec:** Update can include `specialinput: {type: "fileref_prompt", filemode: "write", filetype: "save"}`
 
-Currently: File dialogs not implemented.
+**Fixed:** File dialog support implemented:
+1. Added `SpecialInput` struct to protocol.zig with `type`, `filemode`, `filetype`, `gameid` fields
+2. Added `specialinput` field to `StateUpdateJson` struct
+3. Added `sendSpecialInputAndWait(fmode, usage)` function that sends specialinput and blocks for response
+4. `glk_fileref_create_by_prompt()` calls `sendSpecialInputAndWait()` via JSPI suspension
+5. Helper functions `filemodeToString()` and `fileusageToType()` convert Glk constants to GlkOte strings
 
 ---
 

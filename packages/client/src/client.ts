@@ -281,6 +281,65 @@ export class WasiGlkClient {
         this.running = false;
         this.resolveNextUpdate();
         break;
+      case 'fileDialogRequest':
+        this.handleFileDialogRequest(msg.filemode, msg.filetype);
+        break;
+    }
+  }
+
+  private async handleFileDialogRequest(
+    filemode: 'read' | 'write' | 'readwrite' | 'writeappend',
+    filetype: 'save' | 'data' | 'transcript' | 'command'
+  ): Promise<void> {
+    // Check if File System Access API is available
+    if (!('showOpenFilePicker' in window) || !('showSaveFilePicker' in window)) {
+      console.warn('[client] File System Access API not available');
+      this.worker?.postMessage({ type: 'fileDialogResult', filename: null } satisfies MainToWorkerMessage);
+      return;
+    }
+
+    // Get file extension and description based on filetype
+    const { extension, description } = getFileTypeInfo(filetype);
+
+    try {
+      let handle: FileSystemFileHandle;
+
+      // Choose picker based on filemode:
+      // - write: showSaveFilePicker (create new or overwrite)
+      // - read/readwrite/writeappend: showOpenFilePicker (must exist)
+      if (filemode === 'write') {
+        // Show save file picker for creating/overwriting files
+        handle = await (window as any).showSaveFilePicker({
+          suggestedName: `file.${extension}`,
+          types: [{
+            description,
+            accept: { 'application/octet-stream': [`.${extension}`] },
+          }],
+        });
+      } else {
+        // Show open file picker for reading or modifying existing files
+        const [pickedHandle] = await (window as any).showOpenFilePicker({
+          types: [{
+            description,
+            accept: { 'application/octet-stream': [`.${extension}`] },
+          }],
+          multiple: false,
+        });
+        handle = pickedHandle;
+      }
+
+      // Send the handle to the worker
+      this.worker?.postMessage({
+        type: 'fileDialogResult',
+        filename: handle.name,
+        handle,
+      } satisfies MainToWorkerMessage);
+    } catch (e) {
+      // User cancelled or error occurred
+      if ((e as Error).name !== 'AbortError') {
+        console.error('[client] File dialog error:', e);
+      }
+      this.worker?.postMessage({ type: 'fileDialogResult', filename: null } satisfies MainToWorkerMessage);
     }
   }
 
@@ -309,6 +368,20 @@ function hashBytes(data: Uint8Array): number {
     hash = ((hash << 5) - hash + data[i]) | 0;
   }
   return hash >>> 0;
+}
+
+function getFileTypeInfo(filetype: 'save' | 'data' | 'transcript' | 'command'): { extension: string; description: string } {
+  switch (filetype) {
+    case 'save':
+      return { extension: 'glksave', description: 'Saved Games' };
+    case 'transcript':
+      return { extension: 'txt', description: 'Transcripts' };
+    case 'command':
+      return { extension: 'txt', description: 'Command Scripts' };
+    case 'data':
+    default:
+      return { extension: 'glkdata', description: 'Data Files' };
+  }
 }
 
 export async function createClient(config: ClientConfig): Promise<WasiGlkClient> {

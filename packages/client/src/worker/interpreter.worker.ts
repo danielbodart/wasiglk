@@ -25,6 +25,20 @@ let inputResolve: ((value: string) => void) | null = null;
 let generation = 0;
 let currentInputRequest: { windowId: number; type: 'line' | 'char' } | null = null;
 let timerIntervalId: ReturnType<typeof setInterval> | null = null;
+// File dialog state
+let pendingFileDialog: { filemode: 'read' | 'write' | 'readwrite' | 'writeappend'; filetype: string } | null = null;
+let fileDialogResolve: ((result: { filename: string | null; handle?: FileSystemFileHandle }) => void) | null = null;
+let externalFileCounter = 0;
+
+/** Get file extension for a GlkOte filetype */
+function getExtension(filetype: string): string {
+  switch (filetype) {
+    case 'save': return 'glksave';
+    case 'transcript': return 'txt';
+    case 'command': return 'txt';
+    default: return 'glkdata';
+  }
+}
 
 /**
  * Build metrics object for RemGLK protocol from WorkerMetrics.
@@ -123,6 +137,11 @@ self.onmessage = async (e: MessageEvent<MainToWorkerMessage>) => {
       type: 'refresh',
       gen: generation,
     }));
+  } else if (msg.type === 'fileDialogResult' && fileDialogResolve) {
+    // File dialog completed, resolve the pending promise
+    const resolve = fileDialogResolve;
+    fileDialogResolve = null;
+    resolve({ filename: msg.filename, handle: msg.handle });
   } else if (msg.type === 'stop') {
     self.close();
   }
@@ -142,6 +161,54 @@ async function runInterpreter(msg: MainToWorkerMessage & { type: 'init' }): Prom
           support: ['timer', 'graphics', 'graphicswin', 'hyperlinks'],
         } satisfies InputEvent);
       }
+
+      // Check for pending file dialog
+      if (pendingFileDialog) {
+        const dialogInfo = pendingFileDialog;
+        pendingFileDialog = null;
+
+        // Wait for file dialog result from main thread
+        const result = await new Promise<{ filename: string | null; handle?: FileSystemFileHandle }>(
+          resolve => { fileDialogResolve = resolve; }
+        );
+
+        // User cancelled or no handle
+        if (result.filename === null || !result.handle) {
+          return JSON.stringify({
+            type: 'specialresponse',
+            gen: generation,
+            response: 'fileref_prompt',
+            value: null,
+          });
+        }
+
+        // Mount the FileSystemFileHandle directly via SyncAccessHandle
+        const filePath = `/__external_${externalFileCounter++}.${getExtension(dialogInfo.filetype)}`;
+        try {
+          // Get synchronous access to the file (works for both read and write)
+          const syncHandle = await result.handle.createSyncAccessHandle();
+          // Wrap it using browser_wasi_shim's SyncOPFSFile (works with any sync handle)
+          const externalFile = new SyncOPFSFile(syncHandle);
+          addFileToTree(root.dir, filePath, externalFile);
+          console.log(`[external] Mounted external file at ${filePath}`);
+          return JSON.stringify({
+            type: 'specialresponse',
+            gen: generation,
+            response: 'fileref_prompt',
+            value: filePath,
+          });
+        } catch (e) {
+          console.error('[external] Failed to get sync access to file:', e);
+          // Treat as cancelled
+          return JSON.stringify({
+            type: 'specialresponse',
+            gen: generation,
+            response: 'fileref_prompt',
+            value: null,
+          });
+        }
+      }
+
       return new Promise<string>(resolve => { inputResolve = resolve; });
     });
 
@@ -164,6 +231,20 @@ async function runInterpreter(msg: MainToWorkerMessage & { type: 'init' }): Prom
         // Handle timer updates
         if (update.timer !== undefined) {
           handleTimerUpdate(update.timer);
+        }
+        // Handle special input (file dialogs)
+        if (update.specialinput) {
+          const filemode = update.specialinput.filemode;
+          pendingFileDialog = {
+            filemode,
+            filetype: update.specialinput.filetype,
+          };
+          // Request file dialog from main thread
+          post({
+            type: 'fileDialogRequest',
+            filemode,
+            filetype: update.specialinput.filetype,
+          });
         }
         post({ type: 'update', data: update });
       } catch {

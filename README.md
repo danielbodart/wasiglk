@@ -2,16 +2,6 @@
 
 **Work in Progress** - Interactive Fiction interpreters compiled to WebAssembly (WASI) using Zig.
 
-## Why WASI?
-
-Targeting [WASI](https://wasi.dev/) (WebAssembly System Interface) instead of Emscripten's custom runtime gives several advantages:
-
-- **Portable binaries** - The same `.wasm` file runs in browsers (via a WASI shim), Node.js, Bun, Deno, and standalone runtimes like Wasmtime and Wasmer
-- **No JavaScript glue code** - Emscripten generates a large JS runtime alongside the WASM. WASI binaries are self-contained, with only a thin shim needed at runtime
-- **Smaller output** - Without bundled runtime support, binaries are 76-86% smaller (see comparison below)
-- **First-class Zig support** - Zig can target `wasm32-wasi` natively, making cross-compilation straightforward without Emscripten's toolchain complexity
-- **Standard interface** - WASI is a W3C standard with broad industry backing, rather than a project-specific runtime
-
 ## Overview
 
 wasiglk is inspired by [emglken](https://github.com/curiousdannii/emglken), which compiles IF interpreters to WebAssembly using Emscripten and Asyncify. This project takes a different approach:
@@ -33,6 +23,10 @@ The combination of Zig, WASI, JSPI, and wasm-opt produces dramatically smaller b
 | git.wasm | 1.68 MB | 248 KB | **85% smaller** |
 | hugo.wasm | 1.12 MB | 206 KB | **82% smaller** |
 | scare.wasm | 1.82 MB | 446 KB | **76% smaller** |
+
+**Why WASI?** Targeting [WASI](https://wasi.dev/) instead of Emscripten's custom runtime means portable binaries that run in browsers (via a shim), Node.js, Bun, Deno, and standalone runtimes like Wasmtime. WASI binaries are self-contained with no generated JavaScript glue code, and WASI is a W3C standard with broad industry backing rather than a project-specific runtime.
+
+**Why Zig?** Zig can target `wasm32-wasi` natively, cross-compiling C sources without Emscripten's toolchain complexity. Combined with WASI and wasm-opt, this produces the dramatically smaller binaries shown above.
 
 **Why JSPI?** JSPI (JavaScript Promise Integration) is a native browser feature that allows WASM to suspend and resume execution without code transformation, resulting in smaller binaries and better performance.
 

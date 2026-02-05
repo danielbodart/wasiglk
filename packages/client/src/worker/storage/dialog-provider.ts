@@ -38,7 +38,7 @@ export class DialogProvider implements DialogCapableProvider {
   /** Track AsyncFSAFile instances for cleanup */
   private readonly asyncFiles: Map<string, AsyncFSAFile> = new Map();
 
-  constructor(private readonly config: StorageConfig) {
+  constructor(config: StorageConfig) {
     this.opfsProvider = new OpfsProvider(config);
   }
 

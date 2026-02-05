@@ -14,14 +14,17 @@
     "wasi",
     "webassembly"
   ],
-  "repository": "danielbodart/wasiglk",
-  "bugs": "https://github.com/danielbodart/wasiglk/issues",
-  "homepage": "https://github.com/danielbodart/wasiglk",
+  "repository": "bodar/wasiglk",
+  "bugs": "https://github.com/bodar/wasiglk/issues",
+  "homepage": "https://github.com/bodar/wasiglk",
   "type": "module",
   "devDependencies": {
     "@playwright/test": "^1.58.1",
+    "@types/bun": "latest",
+    "@typescript/native-preview": "^7.0.0-dev.20251215.1",
     "binaryen": "^125.0.0",
-    "playwright": "^1.58.1"
+    "playwright": "^1.58.1",
+    "typescript": "^5.9.3"
   },
   "scripts": {
     "build": "bun run.ts build",

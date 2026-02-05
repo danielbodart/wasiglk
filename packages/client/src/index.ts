@@ -1,5 +1,5 @@
 /**
- * @wasiglk/client
+ * @bodar/wasiglk
  *
  * TypeScript client library for running Interactive Fiction
  * interpreters compiled to WASM.

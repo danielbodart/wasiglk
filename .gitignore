@@ -9,3 +9,5 @@ zig-out/
 tools
 .playwright-mcp
 .claude/*.local.md
+packages/client/wasm/
+packages/client/jsr.json

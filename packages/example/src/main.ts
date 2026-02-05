@@ -1,10 +1,10 @@
 /**
  * WasiGlk Example
  *
- * Demonstrates using @wasiglk/client to run an interactive fiction interpreter.
+ * Demonstrates using @bodar/wasiglk to run an interactive fiction interpreter.
  */
 
-import { createClient, type ClientUpdate } from '@wasiglk/client';
+import { createClient, type ClientUpdate } from '@bodar/wasiglk';
 
 // DOM elements
 const outputEl = document.getElementById('output')!;

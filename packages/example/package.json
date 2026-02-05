@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@wasiglk/client": "workspace:*"
+    "@bodar/wasiglk": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",

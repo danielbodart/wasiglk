@@ -5,7 +5,7 @@
  * Files exist only for the duration of the session.
  */
 
-import { File, Directory, type Inode } from '@bjorn3/browser_wasi_shim';
+import type { Inode } from '@bjorn3/browser_wasi_shim';
 import { READ_ONLY_FILES, type StorageProvider, type StorageConfig, type FilePromptMetadata, type FilePromptResult } from './types';
 import { generateFilename } from './filename-generator';
 

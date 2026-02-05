@@ -33,22 +33,8 @@ const IFRS = 0x49465253; // 'IFRS'
 const RIdx = 0x52496478; // 'RIdx'
 const PNG_ = 0x504e4720; // 'PNG '
 const JPEG = 0x4a504547; // 'JPEG'
-const GLUL = 0x474c554c; // 'GLUL'
-const ZCOD = 0x5a434f44; // 'ZCOD'
-
-const USAGE_PICT = 0x50696374; // 'Pict'
-const USAGE_SND = 0x536e6420; // 'Snd '
-const USAGE_EXEC = 0x45786563; // 'Exec'
-const USAGE_DATA = 0x44617461; // 'Data'
-
-function fourcc(a: string, b: string, c: string, d: string): number {
-  return (
-    (a.charCodeAt(0) << 24) |
-    (b.charCodeAt(0) << 16) |
-    (c.charCodeAt(0) << 8) |
-    d.charCodeAt(0)
-  );
-}
+// FourCC type IDs: GLUL=0x474c554c ZCOD=0x5a434f44
+// Usage IDs: Pict=0x50696374 Snd=0x536e6420 Exec=0x45786563 Data=0x44617461
 
 function fourccToString(val: number): string {
   return String.fromCharCode(

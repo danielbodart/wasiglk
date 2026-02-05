@@ -1,7 +1,7 @@
 {
   "name": "@bodar/wasiglk",
   "version": "0.0.0",
-  "description": "Interactive Fiction interpreters compiled to WebAssembly (WASI) using Zig",
+  "description": "Interactive Fiction interpreters compiled to WebAssembly with Zig. Run classic text adventures in the browser via Web Workers and JSPI.",
   "type": "module",
   "sideEffects": false,
   "exports": {

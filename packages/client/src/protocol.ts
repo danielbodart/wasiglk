@@ -55,6 +55,7 @@ export interface HyperlinkInputEvent {
 
 export type InputEvent = InitEvent | LineInputEvent | CharInputEvent | TimerInputEvent | ArrangeInputEvent | MouseInputEvent | HyperlinkInputEvent;
 
+/** Display metrics for RemGlk protocol window layout. */
 export interface Metrics {
   // Overall dimensions
   width: number;
@@ -105,6 +106,7 @@ export interface RemGlkUpdate {
   message?: string;
 }
 
+/** Window layout update from the interpreter. */
 export interface WindowUpdate {
   id: number;
   type: 'buffer' | 'grid' | 'graphics' | 'pair';
@@ -181,6 +183,7 @@ export interface SpecialContent {
   y?: number;
 }
 
+/** Image alignment in buffer windows. */
 export type ImageAlignment =
   | 'inlineup'
   | 'inlinedown'
@@ -209,7 +212,7 @@ export interface InputRequest {
   terminators?: string[];  // line input terminators (e.g., ["escape", "func1"])
 }
 
-// Client update types (what we yield from the async iterator)
+/** Union of all update types yielded by the client async iterator. */
 export type ClientUpdate =
   | ContentClientUpdate
   | InputRequestClientUpdate
@@ -221,6 +224,7 @@ export type ClientUpdate =
   | DebugOutputClientUpdate
   | SpecialInputClientUpdate;
 
+/** Text or graphics content update for a window. */
 export interface ContentClientUpdate {
   type: 'content';
   windowId: number;
@@ -228,6 +232,7 @@ export interface ContentClientUpdate {
   content: ProcessedContentSpan[];
 }
 
+/** A processed content span ready for rendering. */
 export interface ProcessedContentSpan {
   type: 'text' | 'image' | 'flowbreak' | 'fill' | 'setcolor';
   // Text fields
@@ -247,6 +252,7 @@ export interface ProcessedContentSpan {
   y?: number;
 }
 
+/** Request for user input (line or character). */
 export interface InputRequestClientUpdate {
   type: 'input-request';
   windowId: number;
@@ -260,16 +266,19 @@ export interface InputRequestClientUpdate {
   terminators?: string[];  // line input terminators (e.g., ["escape", "func1"])
 }
 
+/** Window layout change notification. */
 export interface WindowClientUpdate {
   type: 'window';
   windows: WindowUpdate[];
 }
 
+/** Error from the interpreter. */
 export interface ErrorClientUpdate {
   type: 'error';
   message: string;
 }
 
+/** Timer interval change from the interpreter. */
 export interface TimerClientUpdate {
   type: 'timer';
   interval: number | null;  // Interval in ms, or null to cancel timer

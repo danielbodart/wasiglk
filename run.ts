@@ -162,6 +162,7 @@ export async function jsr(): Promise<{ packageFile: string; depName: string; ori
         const jsrConfig: any = {
             name: packageJson.name,
             version: v,
+            description: packageJson.description,
             exports: packageJson.exports,
             license: 'MIT'
         };

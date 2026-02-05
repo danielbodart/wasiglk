@@ -1,8 +1,27 @@
 /**
- * @bodar/wasiglk
+ * @module
  *
- * TypeScript client library for running Interactive Fiction
- * interpreters compiled to WASM.
+ * TypeScript client library for running Interactive Fiction interpreters
+ * compiled to WebAssembly with Zig. Run classic text adventures in the
+ * browser via Web Workers and JSPI.
+ *
+ * @example
+ * ```typescript
+ * import { createClient } from '@bodar/wasiglk';
+ *
+ * const client = await createClient({
+ *   storyUrl: '/stories/adventure.gblorb',
+ *   workerUrl: '/worker.js',
+ * });
+ *
+ * for await (const update of client.updates({ width: 80, height: 24 })) {
+ *   if (update.type === 'content') {
+ *     for (const span of update.content) {
+ *       if (span.type === 'text') process.stdout.write(span.text ?? '');
+ *     }
+ *   }
+ * }
+ * ```
  */
 
 // Main client API

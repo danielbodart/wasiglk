@@ -7,6 +7,7 @@
  * - Resource index
  */
 
+/** An image extracted from a Blorb file. */
 export interface BlorbImage {
   number: number;
   format: 'png' | 'jpeg';
@@ -15,6 +16,7 @@ export interface BlorbImage {
   height: number;
 }
 
+/** A resource entry from the Blorb resource index. */
 export interface BlorbResource {
   usage: string;
   number: number;
@@ -45,6 +47,7 @@ function fourccToString(val: number): string {
   );
 }
 
+/** Parser for IFF/FORM Blorb files containing story data and resources. */
 export class BlorbParser {
   private data: Uint8Array;
   private view: DataView;

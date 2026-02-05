@@ -7,6 +7,7 @@
 
 import { type GraphicsRenderer, colorToCSS } from './types';
 
+/** SVG-based graphics renderer for GLK graphics windows. */
 export class SvgRenderer implements GraphicsRenderer {
   private svg: SVGSVGElement | null = null;
   private defs: SVGDefsElement | null = null;

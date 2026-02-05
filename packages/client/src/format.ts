@@ -4,6 +4,7 @@
  * Detects the story format from URL extension or file magic numbers.
  */
 
+/** Supported Interactive Fiction story formats. */
 export type StoryFormat =
   | 'glulx'
   | 'zcode'
@@ -20,6 +21,7 @@ export type StoryFormat =
   | 'scott'
   | 'unknown';
 
+/** Detected format with interpreter name and Blorb status. */
 export interface FormatInfo {
   format: StoryFormat;
   interpreter: string;

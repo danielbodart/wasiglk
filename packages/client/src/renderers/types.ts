@@ -5,6 +5,7 @@
  * Applications can implement this to render graphics however they want.
  */
 
+/** Pluggable interface for rendering graphics windows. */
 export interface GraphicsRenderer {
   /** Mount the renderer to a container element */
   mount(container: HTMLElement): void;

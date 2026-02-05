@@ -1,8 +1,8 @@
 /**
- * Interpreter Worker
+ * @module
  *
- * Runs the WASM interpreter in a Web Worker using browser_wasi_shim.
- * Uses JSPI for async stdin and pluggable file storage.
+ * Interpreter Worker - runs the WASM interpreter in a Web Worker using
+ * browser_wasi_shim. Uses JSPI for async stdin and pluggable file storage.
  */
 
 import {

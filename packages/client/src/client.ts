@@ -9,6 +9,7 @@ import { detectFormat, type FormatInfo, type StoryFormat } from './format';
 import { type ClientUpdate, parseRemGlkUpdate } from './protocol';
 import type { MainToWorkerMessage, WorkerToMainMessage } from './worker/messages';
 
+/** Configuration for creating a WasiGlk client instance. */
 export interface ClientConfig {
   /** URL to the story file */
   storyUrl?: string;
@@ -32,6 +33,7 @@ export interface ClientConfig {
   filesystem?: 'auto' | 'opfs' | 'memory' | 'dialog';
 }
 
+/** Display metrics for the interpreter output area. */
 export interface UpdatesConfig {
   width: number;
   height: number;
@@ -39,6 +41,7 @@ export interface UpdatesConfig {
   charHeight?: number;
 }
 
+/** Client for running Interactive Fiction interpreters in a Web Worker. */
 export class WasiGlkClient {
   private storyData: Uint8Array;
   private interpreterData: ArrayBuffer;
@@ -399,6 +402,7 @@ function getFileTypeInfo(filetype: 'save' | 'data' | 'transcript' | 'command'): 
   }
 }
 
+/** Create a new WasiGlk client. Loads the story and interpreter, returning a ready-to-use client. */
 export async function createClient(config: ClientConfig): Promise<WasiGlkClient> {
   return WasiGlkClient.create(config);
 }

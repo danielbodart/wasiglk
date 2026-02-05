@@ -78,7 +78,7 @@ void Bun.serve({
     if (path === '/worker.js') {
       try {
         const result = await Bun.build({
-          entrypoints: [join(ROOT_DIR, 'packages/client/src/worker/interpreter.worker.ts')],
+          entrypoints: [join(ROOT_DIR, 'packages/client/src/worker/worker.ts')],
           target: 'browser',
           format: 'esm',
         });

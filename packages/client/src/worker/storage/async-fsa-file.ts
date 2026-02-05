@@ -2,7 +2,7 @@
  * AsyncFSAFile - A file with an external File System Access handle.
  *
  * In-memory buffer is the source of truth. External file is written
- * on fd_close() via JSPI (handled in interpreter.worker.ts).
+ * on fd_close() via JSPI (handled in worker.ts).
  */
 
 import { File as WasiFile } from '@bjorn3/browser_wasi_shim';

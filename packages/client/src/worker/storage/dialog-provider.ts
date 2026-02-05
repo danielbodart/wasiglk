@@ -19,8 +19,8 @@ import type {
 import { OpfsProvider } from './opfs-provider';
 import {
   AsyncFSAFile,
-  createAsyncFSAFileForRead,
-  createAsyncFSAFileForWrite,
+  readFileFromHandle,
+  createAsyncFSAFile,
 } from './async-fsa-file';
 
 /**
@@ -92,13 +92,13 @@ export class DialogProvider implements DialogCapableProvider {
         return { filename: null };
       }
 
-      // Create AsyncFSAFile based on mode
+      // Mount file based on mode
       const isRead = metadata.filemode === 'read';
-      const basename = await this.mountAsyncFSAFile(result.handle, result.filename, isRead);
+      const basename = await this.mountFile(result.handle, result.filename, isRead);
 
       // Return full WASI path so interpreter can find it
       const filename = `/home/${basename}`;
-      console.log(`[dialog] Mounted AsyncFSAFile for ${isRead ? 'read' : 'write'}: ${filename}`);
+      console.log(`[dialog] Mounted file for ${isRead ? 'read' : 'write'}: ${filename}`);
       return { filename };
     } catch (err) {
       console.error('[dialog] File dialog failed:', err);
@@ -107,9 +107,11 @@ export class DialogProvider implements DialogCapableProvider {
   }
 
   /**
-   * Mount a FileSystemFileHandle as an AsyncFSAFile in /home/.
+   * Mount a FileSystemFileHandle in /home/.
+   * For read: loads data into a regular File.
+   * For write: creates an AsyncFSAFile with the handle for writing on close.
    */
-  private async mountAsyncFSAFile(
+  private async mountFile(
     handle: FileSystemFileHandle,
     filename: string,
     isRead: boolean
@@ -122,13 +124,16 @@ export class DialogProvider implements DialogCapableProvider {
     this.asyncFiles.delete(filename);
     this.homeContents.delete(filename);
 
-    // Create AsyncFSAFile - for read, data is loaded; for write, starts empty
-    const asyncFile = isRead
-      ? await createAsyncFSAFileForRead(handle)
-      : createAsyncFSAFileForWrite(handle);
-
-    this.asyncFiles.set(filename, asyncFile);
-    this.homeContents.set(filename, asyncFile);
+    if (isRead) {
+      // Read: load data into regular File, no need to track
+      const file = await readFileFromHandle(handle);
+      this.homeContents.set(filename, file);
+    } else {
+      // Write: create AsyncFSAFile with handle for writing on close
+      const asyncFile = createAsyncFSAFile(handle);
+      this.asyncFiles.set(filename, asyncFile);
+      this.homeContents.set(filename, asyncFile);
+    }
 
     return filename;
   }

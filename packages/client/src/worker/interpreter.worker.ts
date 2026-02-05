@@ -8,6 +8,7 @@
 import {
   WASI,
   File,
+  OpenFile,
   Directory,
   PreopenDirectory,
   ConsoleStdout,
@@ -23,6 +24,7 @@ import {
   type FileType,
   type FileMode,
 } from './storage';
+import { AsyncFSAFile } from './storage/async-fsa-file';
 import type { MainToWorkerMessage, WorkerToMainMessage } from './messages';
 import type { InputEvent, RemGlkUpdate } from '../protocol';
 
@@ -387,6 +389,42 @@ function wrapWithJSPI(
     ) as number;
   };
 
+  // Async fd_close for files with external handles
+  const asyncFdClose = async (fd: number): Promise<number> => {
+    const fdObj = wasiInstance.fds[fd];
+
+    // Capture data and handle synchronously before closing
+    let dataToWrite: ArrayBuffer | null = null;
+    let handleToWrite: FileSystemFileHandle | null = null;
+
+    if (fdObj instanceof OpenFile && fdObj.file instanceof AsyncFSAFile) {
+      const asyncFile = fdObj.file;
+      if (asyncFile.externalHandle) {
+        // Copy data before close to ensure we have final state
+        dataToWrite = asyncFile.data.slice().buffer;
+        handleToWrite = asyncFile.externalHandle;
+      }
+    }
+
+    // Close the fd first (proper WASI semantics)
+    const result = imports.fd_close(fd) as number;
+
+    // Then async write to external file (WASM suspended via JSPI)
+    if (dataToWrite && handleToWrite) {
+      try {
+        const writable = await handleToWrite.createWritable();
+        await writable.write(dataToWrite);
+        await writable.close();
+        console.log(`[async-fsa] Wrote ${dataToWrite.byteLength} bytes to external file`);
+      } catch (err) {
+        console.error('[async-fsa] Failed to write to external file:', err);
+        // Log and continue - fd is already closed
+      }
+    }
+
+    return result;
+  };
+
   return {
     wasi_snapshot_preview1: {
       ...imports,
@@ -394,6 +432,8 @@ function wrapWithJSPI(
       fd_read: new WebAssembly.Suspending(asyncFdRead),
       // @ts-expect-error - JSPI API
       path_open: new WebAssembly.Suspending(asyncPathOpen),
+      // @ts-expect-error - JSPI API
+      fd_close: new WebAssembly.Suspending(asyncFdClose),
     },
   };
 }

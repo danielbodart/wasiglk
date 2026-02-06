@@ -19,6 +19,8 @@ export type StoryFormat =
   | 'level9'
   | 'magnetic'
   | 'scott'
+  | 'taylor'
+  | 'sagaplus'
   | 'unknown';
 
 /** Detected format with interpreter name and Blorb status. */
@@ -73,7 +75,11 @@ const EXTENSION_MAP: Record<string, FormatInfo> = {
   '.mag': { format: 'magnetic', interpreter: 'magnetic', isBlorb: false },
 
   // Scott Adams
-  '.saga': { format: 'scott', interpreter: 'scottfree', isBlorb: false },
+  '.saga': { format: 'scott', interpreter: 'scott', isBlorb: false },
+  '.sagaplus': { format: 'sagaplus', interpreter: 'plus', isBlorb: false },
+
+  // Adventure International UK (later titles)
+  '.taylor': { format: 'taylor', interpreter: 'taylor', isBlorb: false },
 };
 
 // Magic number signatures (first 4-16 bytes)

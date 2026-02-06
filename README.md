@@ -62,9 +62,24 @@ The `./run` script auto-installs all required tools (Zig, Bun, wasi-sdk) on firs
 | [JACL](https://github.com/garglk/garglk) | C | JACL | .j2 | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
 | [Level9](https://github.com/garglk/garglk) | C | Level 9 | .l9, .sna | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
 | [Magnetic](https://github.com/garglk/garglk) | C | Magnetic Scrolls | .mag | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
+| [Plus](https://github.com/garglk/garglk) | C | Scott Adams Plus | .sagaplus | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
 | [Scare](https://github.com/garglk/garglk) | C | ADRIFT | .taf | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
+| [Scott](https://github.com/garglk/garglk) | C | Scott Adams | .saga | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
 | [TADS 2](https://github.com/garglk/garglk) | C | TADS 2 | .gam | [TADS Freeware](https://www.tads.org/t3doc/license.txt) | ✅ | ✅ |
 | [TADS 3](https://github.com/garglk/garglk) | C++ | TADS 3 | .t3 | [TADS Freeware](https://www.tads.org/t3doc/license.txt) | ✅ | ✅ |
+| [Taylor](https://github.com/garglk/garglk) | C | Adventure Int'l UK | .sna | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
+
+### Libraries
+
+The following libraries are used to support the interpreters above:
+
+| Name | Language | Used by | License |
+|------|----------|---------|---------|
+| [c64diskimage](https://github.com/garglk/garglk/tree/master/terps/c64diskimage) | C | Scott, Taylor, Plus | [BSD-2-Clause](https://github.com/garglk/garglk/tree/master/terps/c64diskimage/c64diskimage.c) |
+| [libfizmo](https://github.com/danielbodart/libfizmo) | C | Fizmo | [BSD-3-Clause](https://github.com/danielbodart/libfizmo/blob/master/LICENSE.md) |
+| [libglkif](https://github.com/chrender/libglkif) | C | Fizmo | [BSD-3-Clause](https://github.com/chrender/libglkif/blob/master/LICENSE.md) |
+| [unp64](https://github.com/garglk/garglk/tree/master/terps/unp64) | C++ | Scott, Taylor | [zlib](https://github.com/garglk/garglk/tree/master/terps/unp64/unp64.cpp) |
+| [zlib](https://github.com/madler/zlib) | C | Scare | [zlib](https://github.com/madler/zlib/blob/develop/LICENSE) |
 
 ### Native-Only Interpreters
 

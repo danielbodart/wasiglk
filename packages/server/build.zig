@@ -26,6 +26,12 @@ pub fn build(b: *std.Build) void {
     // Build zlib (used by Scare)
     const zlib = buildZlib(b, target, optimize);
 
+    // Build c64diskimage (used by Scott, Taylor, Plus)
+    const c64diskimage = buildC64DiskImage(b, target, optimize);
+
+    // Build unp64 (used by Scott, Taylor)
+    const unp64 = buildUnp64(b, target, optimize);
+
     // Build all interpreters (C-based, work on both native and WASM)
     const interpreters = .{
         .{ "glulxe", "Build Glulxe interpreter", buildGlulxe },
@@ -76,6 +82,22 @@ pub fn build(b: *std.Build) void {
     const tads3_install = b.addInstallArtifact(tads3, .{});
     b.step("tads3", "Build TADS 3 interpreter").dependOn(&tads3_install.step);
     b.getInstallStep().dependOn(&tads3_install.step);
+
+    // Scott Adams family interpreters (need c64diskimage/unp64 libraries)
+    const scott = buildScott(b, target, optimize, wasi_glk, c64diskimage, unp64);
+    const scott_install = b.addInstallArtifact(scott, .{});
+    b.step("scott", "Build Scott interpreter (Scott Adams)").dependOn(&scott_install.step);
+    b.getInstallStep().dependOn(&scott_install.step);
+
+    const taylor = buildTaylor(b, target, optimize, wasi_glk, c64diskimage, unp64);
+    const taylor_install = b.addInstallArtifact(taylor, .{});
+    b.step("taylor", "Build Taylor interpreter (Adventure Int'l UK)").dependOn(&taylor_install.step);
+    b.getInstallStep().dependOn(&taylor_install.step);
+
+    const plus = buildPlus(b, target, optimize, wasi_glk, c64diskimage);
+    const plus_install = b.addInstallArtifact(plus, .{});
+    b.step("plus", "Build Plus interpreter (Scott Adams Plus)").dependOn(&plus_install.step);
+    b.getInstallStep().dependOn(&plus_install.step);
 
     // Native-only interpreters (C++ with actual throw/catch exceptions)
     // WASM blocked by wasi-sdk lacking C++ exception support
@@ -1072,6 +1094,228 @@ fn buildAlan3(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bui
 
     addGlkSupport(exe, b, wasi_glk, false);
     exe.addIncludePath(b.path("../garglk/terps/alan3"));
+
+    return exe;
+}
+
+// ============================================================================
+// Scott Adams family interpreters (Scott, Taylor, Plus)
+// ============================================================================
+
+fn buildC64DiskImage(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+    const lib = b.addLibrary(.{
+        .linkage = .static,
+        .name = "c64diskimage",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    lib.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/c64diskimage"),
+        .files = &.{"c64diskimage.c"},
+    });
+
+    lib.addIncludePath(b.path("../garglk/terps/c64diskimage"));
+    lib.linkLibC();
+
+    return lib;
+}
+
+fn buildUnp64(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+    const lib = b.addLibrary(.{
+        .linkage = .static,
+        .name = "unp64",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    lib.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/unp64"),
+        .files = &.{
+            "6502_emu.cpp",
+            "exo_util.cpp",
+            "globals.cpp",
+            "unp64.cpp",
+            "scanners/scanners.cpp",
+            "scanners/abuze_crunch.cpp",
+            "scanners/action_packer.cpp",
+            "scanners/byte_boiler.cpp",
+            "scanners/caution.cpp",
+            "scanners/ccs.cpp",
+            "scanners/cruel.cpp",
+            "scanners/eca.cpp",
+            "scanners/exomizer.cpp",
+            "scanners/expert.cpp",
+            "scanners/final_super_comp.cpp",
+            "scanners/intros.cpp",
+            "scanners/master_compressor.cpp",
+            "scanners/megabyte.cpp",
+            "scanners/mr_cross.cpp",
+            "scanners/mr_z.cpp",
+            "scanners/pu_crunch.cpp",
+            "scanners/section8.cpp",
+            "scanners/tbc_multicomp.cpp",
+            "scanners/tcs_crunch.cpp",
+            "scanners/time_cruncher.cpp",
+            "scanners/xtc.cpp",
+        },
+        .flags = &.{
+            "-fno-exceptions",
+            "-fno-rtti",
+        },
+    });
+
+    lib.addIncludePath(b.path("../garglk/terps/unp64"));
+    lib.linkLibCpp();
+
+    return lib;
+}
+
+fn buildScott(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile, c64diskimage: *std.Build.Step.Compile, unp64: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "scott",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    exe.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/scott"),
+        .files = &.{
+            "scott.c",
+            "bsd.c",
+            "detectgame.c",
+            "scottgameinfo.c",
+            "layouttext.c",
+            "parser.c",
+            "restorestate.c",
+            "titleimage.c",
+            "ai_uk/c64decrunch.c",
+            "ai_uk/debug.c",
+            "ai_uk/decompresstext.c",
+            "ai_uk/line_drawing.c",
+            "ai_uk/game_specific.c",
+            "ai_uk/hulk.c",
+            "ai_uk/gremlins.c",
+            "ai_uk/decompressz80.c",
+            "ai_uk/ringbuffer.c",
+            "ai_uk/robinofsherwood.c",
+            "ai_uk/sagadraw.c",
+            "ai_uk/seasofblood.c",
+            "saga/apple2detect.c",
+            "saga/apple2draw.c",
+            "saga/atari8c64draw.c",
+            "saga/atari8detect.c",
+            "saga/ciderpress.c",
+            "saga/pcdraw.c",
+            "saga/saga.c",
+            "saga/sagagraphics.c",
+            "saga/woz2nib.c",
+            "ti994a/load_ti99_4a.c",
+            "ti994a/ti99_4a_terp.c",
+        },
+        .flags = &.{
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Wall",
+            "-Wno-pointer-sign",
+        },
+    });
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("../garglk/terps/scott"));
+    exe.addIncludePath(b.path("../garglk/terps/scott/saga"));
+    exe.addIncludePath(b.path("../garglk/terps/scott/ai_uk"));
+    exe.addIncludePath(b.path("../garglk/terps/scott/ti994a"));
+
+    exe.linkLibrary(c64diskimage);
+    exe.addIncludePath(b.path("../garglk/terps/c64diskimage"));
+    exe.linkLibrary(unp64);
+    exe.addIncludePath(b.path("../garglk/terps/unp64"));
+    exe.linkLibCpp();
+
+    return exe;
+}
+
+fn buildTaylor(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile, c64diskimage: *std.Build.Step.Compile, unp64: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "taylor",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    exe.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/taylor"),
+        .files = &.{
+            "animations.c",
+            "c64decrunch.c",
+            "decompressz80.c",
+            "decrypttotloader.c",
+            "extracommands.c",
+            "extracttape.c",
+            "gameinfo.c",
+            "layouttext.c",
+            "loadtotpicture.c",
+            "parseinput.c",
+            "player.c",
+            "restorestate.c",
+            "sagadraw.c",
+            "ui.c",
+            "utility.c",
+        },
+        .flags = &.{
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Wall",
+            "-Wno-pointer-sign",
+        },
+    });
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("../garglk/terps/taylor"));
+
+    exe.linkLibrary(c64diskimage);
+    exe.addIncludePath(b.path("../garglk/terps/c64diskimage"));
+    exe.linkLibrary(unp64);
+    exe.addIncludePath(b.path("../garglk/terps/unp64"));
+    exe.linkLibCpp();
+
+    return exe;
+}
+
+fn buildPlus(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile, c64diskimage: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "plus",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    exe.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/plus"),
+        .files = &.{
+            "plusmain.c",
+            "animations.c",
+            "apple2detect.c",
+            "apple2draw.c",
+            "atari8c64draw.c",
+            "atari8detect.c",
+            "c64detect.c",
+            "extracommands.c",
+            "companionfile.c",
+            "gameinfo.c",
+            "graphics.c",
+            "layouttext.c",
+            "loaddatabase.c",
+            "parseinput.c",
+            "pcdraw.c",
+            "restorestate.c",
+            "stdetect.c",
+            "stdraw.c",
+        },
+        .flags = &.{
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Wall",
+            "-Wno-pointer-sign",
+        },
+    });
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("../garglk/terps/plus"));
+
+    exe.linkLibrary(c64diskimage);
+    exe.addIncludePath(b.path("../garglk/terps/c64diskimage"));
 
     return exe;
 }

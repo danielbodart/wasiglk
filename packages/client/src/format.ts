@@ -49,8 +49,8 @@ const EXTENSION_MAP: Record<string, FormatInfo> = {
   '.hex': { format: 'hugo', interpreter: 'hugo', isBlorb: false },
 
   // TADS
-  '.gam': { format: 'tads2', interpreter: 'tads', isBlorb: false },
-  '.t3': { format: 'tads3', interpreter: 'tads', isBlorb: false },
+  '.gam': { format: 'tads2', interpreter: 'tads2', isBlorb: false },
+  '.t3': { format: 'tads3', interpreter: 'tads3', isBlorb: false },
 
   // Alan
   '.acd': { format: 'alan3', interpreter: 'alan3', isBlorb: false },
@@ -111,14 +111,14 @@ const MAGIC_SIGNATURES: Array<{
     bytes: [0x54, 0x41, 0x44, 0x53],
     offset: 0,
     format: 'tads2',
-    interpreter: 'tads',
+    interpreter: 'tads2',
   },
   // TADS3: T3-image
   {
     bytes: [0x54, 0x33, 0x2d, 0x69],
     offset: 0,
     format: 'tads3',
-    interpreter: 'tads',
+    interpreter: 'tads3',
   },
 ];
 

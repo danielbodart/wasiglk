@@ -48,7 +48,7 @@ export async function optimize() {
     console.log(`Optimizing ${wasmFiles.length} WASM files with wasm-opt...`);
     const wasmOpt = "./node_modules/.bin/wasm-opt";
 
-    for (const f of wasmFiles) {
+    await Promise.all(wasmFiles.map(async (f) => {
         const before = Bun.file(f).size;
         await $`${wasmOpt} -Oz \
             --enable-bulk-memory \
@@ -63,7 +63,7 @@ export async function optimize() {
         const saved = before - after;
         const percent = Math.round(saved * 100 / before);
         console.log(`  ${f.split('/').pop()}: ${before} -> ${after} (${percent}% smaller)`);
-    }
+    }));
 }
 
 // Copy WASM binaries into client package for publishing

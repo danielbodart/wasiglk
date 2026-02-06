@@ -22,7 +22,8 @@ The combination of Zig, WASI, JSPI, and wasm-opt produces dramatically smaller b
 | glulxe.wasm | 1.68 MB | 240 KB | **86% smaller** |
 | git.wasm | 1.68 MB | 249 KB | **85% smaller** |
 | hugo.wasm | 1.12 MB | 207 KB | **82% smaller** |
-| tads.wasm | 3.9 MB | 1.86 MB | **52% smaller** |
+| tads2.wasm | 3.9 MB | 673 KB | **83% smaller** |
+| tads3.wasm | 3.9 MB | 1.34 MB | **66% smaller** |
 | scare.wasm | 1.82 MB | 447 KB | **76% smaller** |
 
 **Why WASI?** Targeting [WASI](https://wasi.dev/) instead of Emscripten's custom runtime means portable binaries that run in browsers (via a shim), Node.js, Bun, Deno, and standalone runtimes like Wasmtime. WASI binaries are self-contained with no generated JavaScript glue code, and WASI is a W3C standard with broad industry backing rather than a project-specific runtime.
@@ -62,11 +63,12 @@ The `./run` script auto-installs all required tools (Zig, Bun, wasi-sdk) on firs
 | [Level9](https://github.com/garglk/garglk) | C | Level 9 | .l9, .sna | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
 | [Magnetic](https://github.com/garglk/garglk) | C | Magnetic Scrolls | .mag | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
 | [Scare](https://github.com/garglk/garglk) | C | ADRIFT | .taf | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
-| [TADS](https://github.com/garglk/garglk) | C/C++ | TADS 2/3 | .gam, .t3 | [TADS Freeware](https://www.tads.org/t3doc/license.txt) | ✅ | ✅ |
+| [TADS 2](https://github.com/garglk/garglk) | C | TADS 2 | .gam | [TADS Freeware](https://www.tads.org/t3doc/license.txt) | ✅ | ✅ |
+| [TADS 3](https://github.com/garglk/garglk) | C++ | TADS 3 | .t3 | [TADS Freeware](https://www.tads.org/t3doc/license.txt) | ✅ | ✅ |
 
 ### Native-Only Interpreters
 
-**Bocfel** is a C++ interpreter that uses C++ exceptions (`throw`/`catch`) for control flow. Its WASM build is blocked because wasi-sdk doesn't ship `libc++`/`libc++abi` with C++ exception support. (TADS also uses C++ but its error handling is setjmp/longjmp-based, so it compiles to WASM without C++ exception support.)
+**Bocfel** is a C++ interpreter that uses C++ exceptions (`throw`/`catch`) for control flow. Its WASM build is blocked because wasi-sdk doesn't ship `libc++`/`libc++abi` with C++ exception support. (TADS 3 also uses C++ but its error handling is setjmp/longjmp-based, so it compiles to WASM without C++ exception support.)
 
 **What's needed for C++ WASM support:**
 - wasi-sdk built with `LIBCXX_ENABLE_EXCEPTIONS=ON`, `LIBCXXABI_ENABLE_EXCEPTIONS=ON`, and `libunwind`

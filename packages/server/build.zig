@@ -65,11 +65,17 @@ pub fn build(b: *std.Build) void {
     b.step("scare", "Build Scare interpreter (ADRIFT)").dependOn(&scare_install.step);
     b.getInstallStep().dependOn(&scare_install.step);
 
-    // TADS uses setjmp/longjmp (not C++ exceptions) so it works on both native and WASM
-    const tads = buildTads(b, target, optimize, wasi_glk);
-    const tads_install = b.addInstallArtifact(tads, .{});
-    b.step("tads", "Build TADS 2/3 interpreter").dependOn(&tads_install.step);
-    b.getInstallStep().dependOn(&tads_install.step);
+    // TADS 2 (pure C, no TADS 3 code) and TADS 3 (C++, no TADS 2 code)
+    // Both use setjmp/longjmp (not C++ exceptions)
+    const tads2 = buildTads2(b, target, optimize, wasi_glk);
+    const tads2_install = b.addInstallArtifact(tads2, .{});
+    b.step("tads2", "Build TADS 2 interpreter").dependOn(&tads2_install.step);
+    b.getInstallStep().dependOn(&tads2_install.step);
+
+    const tads3 = buildTads3(b, target, optimize, wasi_glk);
+    const tads3_install = b.addInstallArtifact(tads3, .{});
+    b.step("tads3", "Build TADS 3 interpreter").dependOn(&tads3_install.step);
+    b.getInstallStep().dependOn(&tads3_install.step);
 
     // Native-only interpreters (C++ with actual throw/catch exceptions)
     // WASM blocked by wasi-sdk lacking C++ exception support
@@ -385,10 +391,9 @@ fn buildBocfel(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     return exe;
 }
 
-fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
-    // TADS uses setjmp/longjmp for error handling (not C++ exceptions),
-    // so it needs WASM exception handling support like Git/AdvSys/Alan.
-    const tads_target = if (target.result.cpu.arch == .wasm32)
+fn buildTads2(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    // TADS 2 uses setjmp/longjmp for error handling.
+    const tads2_target = if (target.result.cpu.arch == .wasm32)
         b.resolveTargetQuery(.{
             .cpu_arch = .wasm32,
             .os_tag = .wasi,
@@ -397,14 +402,172 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     else
         target;
 
-    const is_wasm = tads_target.result.cpu.arch == .wasm32;
+    const is_wasm = tads2_target.result.cpu.arch == .wasm32;
 
     const exe = b.addExecutable(.{
-        .name = "tads",
-        .root_module = b.createModule(.{ .target = tads_target, .optimize = optimize }),
+        .name = "tads2",
+        .root_module = b.createModule(.{ .target = tads2_target, .optimize = optimize }),
     });
 
-    const tads_c_flags: []const []const u8 = if (is_wasm) &.{
+    const tads2_c_flags: []const []const u8 = if (is_wasm) &.{
+        "-DGLK",
+        "-DGLK_TIMERS",
+        "-DGLK_UNICODE",
+        "-DRUNTIME",
+        "-Wall",
+        "-Wno-pointer-sign",
+        "-Wno-parentheses",
+        "-D_WASI_EMULATED_SIGNAL",
+        "-mllvm", "-wasm-enable-sjlj",
+        "-mllvm", "-wasm-use-legacy-eh=false",
+    } else &.{
+        "-DGLK",
+        "-DGLK_TIMERS",
+        "-DGLK_UNICODE",
+        "-DRUNTIME",
+        "-Wall",
+        "-Wno-pointer-sign",
+        "-Wno-parentheses",
+    };
+
+    const tads2_cpp_flags: []const []const u8 = if (is_wasm) &.{
+        "-DGLK",
+        "-DGLK_TIMERS",
+        "-DGLK_UNICODE",
+        "-DRUNTIME",
+        "-Wall",
+        "-std=c++11",
+        "-fno-exceptions",
+        "-Wno-deprecated-register",
+        "-D_WASI_EMULATED_SIGNAL",
+        "-mllvm", "-wasm-enable-sjlj",
+        "-mllvm", "-wasm-use-legacy-eh=false",
+    } else &.{
+        "-DGLK",
+        "-DGLK_TIMERS",
+        "-DGLK_UNICODE",
+        "-DRUNTIME",
+        "-Wall",
+        "-std=c++11",
+        "-Wno-deprecated-register",
+    };
+
+    // TADS 2 entry point
+    exe.addCSourceFiles(.{
+        .root = b.path("src"),
+        .files = &.{"tads2_glk.c"},
+        .flags = tads2_c_flags,
+    });
+
+    // TADS Glk interface layer (C files)
+    exe.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/tads/glk"),
+        .files = &.{
+            "memicmp.c",  "osbuffer.c", "osextra.c",  "osglk.c",
+            "osglkban.c", "osmisc.c",   "osparse.c",  "t2askf.c",
+            "t2indlg.c",
+        },
+        .flags = tads2_c_flags,
+    });
+
+    // osportable.cc - shared OS utility functions (C++ file but C-compatible interface).
+    // Needs POSIX stub macros on WASI (dup, geteuid, etc.)
+    exe.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/tads/glk"),
+        .files = &.{"osportable.cc"},
+        .flags = if (is_wasm) &.{
+            "-DGLK",       "-DGLK_TIMERS",  "-DGLK_UNICODE",
+            "-DRUNTIME",   "-Wall",         "-std=c++11",
+            "-fno-exceptions", "-Wno-deprecated-register",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Ddup(x)=(-1)",
+            "-Dgeteuid()=((unsigned)0)",
+            "-Dgetegid()=((unsigned)0)",
+            "-Dgetgroups(a,b)=(0)",
+            "-mllvm", "-wasm-enable-sjlj",
+            "-mllvm", "-wasm-use-legacy-eh=false",
+        } else tads2_cpp_flags,
+    });
+
+    // Shared charmap/UTF-8 utilities from tads3/ (used by osportable.cc for character conversion).
+    // Needs TC_TARGET_T3 and VMGLOB_STRUCT defines for tads3 header compatibility.
+    exe.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/tads/tads3"),
+        .files = &.{ "charmap.cpp", "utf8.cpp" },
+        .flags = if (is_wasm) &.{
+            "-DGLK",        "-DGLK_UNICODE",   "-DRUNTIME",
+            "-DTC_TARGET_T3", "-DVMGLOB_STRUCT",
+            "-Wall",        "-std=c++11",      "-fno-exceptions",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-mllvm", "-wasm-enable-sjlj",
+            "-mllvm", "-wasm-use-legacy-eh=false",
+        } else &.{
+            "-DGLK",        "-DGLK_UNICODE",   "-DRUNTIME",
+            "-DTC_TARGET_T3", "-DVMGLOB_STRUCT",
+            "-Wall",        "-std=c++11",
+        },
+    });
+
+    // TADS 2 runtime (C)
+    exe.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/tads/tads2"),
+        .files = &.{
+            "argize.c",   "bif.c",      "bifgdum.c",  "cmap.c",
+            "cmd.c",      "dat.c",      "dbgtr.c",    "errmsg.c",
+            "execmd.c",   "fio.c",      "fioxor.c",   "getstr.c",
+            "ler.c",      "linfdum.c",  "lst.c",      "mch.c",
+            "mcm.c",      "mcs.c",      "obj.c",      "oem.c",
+            "os0.c",      "oserr.c",    "osifc.c",    "osnoui.c",
+            "osrestad.c", "osstzprs.c", "ostzposix.c", "out.c",
+            "output.c",   "ply.c",      "qas.c",      "regex.c",
+            "run.c",      "runstat.c",  "suprun.c",   "trd.c",
+            "voc.c",      "vocab.c",
+        },
+        .flags = tads2_c_flags,
+    });
+
+    // WASI compatibility stubs (dup, geteuid, etc.)
+    if (is_wasm) {
+        exe.addCSourceFiles(.{
+            .root = b.path("src"),
+            .files = &.{"tads_compat.c"},
+            .flags = &.{"-D_WASI_EMULATED_SIGNAL"},
+        });
+    }
+
+    addGlkSupport(exe, b, wasi_glk, false);
+    exe.addIncludePath(b.path("../garglk/terps/tads/glk"));
+    exe.addIncludePath(b.path("../garglk/terps/tads/tads2"));
+    // tads3 include path needed for vmvsn.h and charmap.h (used by osglk.c and osportable.cc)
+    exe.addIncludePath(b.path("../garglk/terps/tads/tads3"));
+    exe.linkLibCpp();
+
+    if (is_wasm) {
+        addWasiSetjmp(exe, b);
+    }
+
+    return exe;
+}
+
+fn buildTads3(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    // TADS 3 is C++. Uses setjmp/longjmp for error handling (not C++ exceptions).
+    const tads3_target = if (target.result.cpu.arch == .wasm32)
+        b.resolveTargetQuery(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .wasi,
+            .cpu_features_add = std.Target.wasm.featureSet(&.{.exception_handling}),
+        })
+    else
+        target;
+
+    const is_wasm = tads3_target.result.cpu.arch == .wasm32;
+
+    const exe = b.addExecutable(.{
+        .name = "tads3",
+        .root_module = b.createModule(.{ .target = tads3_target, .optimize = optimize }),
+    });
+
+    const tads3_c_flags: []const []const u8 = if (is_wasm) &.{
         "-DGLK",
         "-DGLK_TIMERS",
         "-DGLK_UNICODE",
@@ -429,7 +592,7 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
         "-Wno-parentheses",
     };
 
-    const tads_cpp_flags: []const []const u8 = if (is_wasm) &.{
+    const tads3_cpp_flags: []const []const u8 = if (is_wasm) &.{
         "-DGLK",
         "-DGLK_TIMERS",
         "-DGLK_UNICODE",
@@ -461,24 +624,30 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
         "-Wno-string-concatenation",
     };
 
-    // TADS Glk interface layer (mixed C and C++)
+    // TADS 3 entry point
+    exe.addCSourceFiles(.{
+        .root = b.path("src"),
+        .files = &.{"tads3_glk.cpp"},
+        .flags = tads3_cpp_flags,
+    });
+
+    // TADS Glk interface layer (C files shared with TADS 2)
     exe.addCSourceFiles(.{
         .root = b.path("../garglk/terps/tads/glk"),
         .files = &.{
             "memicmp.c",  "osbuffer.c", "osextra.c",  "osglk.c",
-            "osglkban.c", "osmisc.c",   "osparse.c",  "t2askf.c",
-            "t2indlg.c",
+            "osglkban.c", "osmisc.c",   "osparse.c",
         },
-        .flags = tads_c_flags,
+        .flags = tads3_c_flags,
     });
 
+    // TADS 3 Glk C++ files
     exe.addCSourceFiles(.{
         .root = b.path("../garglk/terps/tads/glk"),
         .files = &.{
-            "t23run.cpp", "t3askf.cpp",
-            "t3indlg.cpp", "vmuni_cs.cpp",
+            "t3askf.cpp", "t3indlg.cpp", "vmuni_cs.cpp",
         },
-        .flags = tads_cpp_flags,
+        .flags = tads3_cpp_flags,
     });
 
     // osportable.cc needs POSIX stub macros on WASI (dup, geteuid, etc.)
@@ -496,25 +665,17 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "-Dgetgroups(a,b)=(0)",
             "-mllvm", "-wasm-enable-sjlj",
             "-mllvm", "-wasm-use-legacy-eh=false",
-        } else tads_cpp_flags,
+        } else tads3_cpp_flags,
     });
 
-    // TADS 2 runtime (C)
+    // Shared OS utility functions from tads2/ (platform abstraction, not game engine)
     exe.addCSourceFiles(.{
         .root = b.path("../garglk/terps/tads/tads2"),
         .files = &.{
-            "argize.c",   "bif.c",      "bifgdum.c",  "cmap.c",
-            "cmd.c",      "dat.c",      "dbgtr.c",    "errmsg.c",
-            "execmd.c",   "fio.c",      "fioxor.c",   "getstr.c",
-            "ler.c",      "linfdum.c",  "lst.c",      "mch.c",
-            "mcm.c",      "mcs.c",      "obj.c",      "oem.c",
-            "os0.c",      "oserr.c",    "osifc.c",    "osnoui.c",
-            "osrestad.c", "osstzprs.c", "ostzposix.c", "out.c",
-            "output.c",   "ply.c",      "qas.c",      "regex.c",
-            "run.c",      "runstat.c",  "suprun.c",   "trd.c",
-            "voc.c",      "vocab.c",
+            "osifc.c",    "osnoui.c",   "osrestad.c",
+            "osstzprs.c", "ostzposix.c",
         },
-        .flags = tads_c_flags,
+        .flags = tads3_c_flags,
     });
 
     // TADS 3 VM (C++)
@@ -547,7 +708,7 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "vmtypedh.cpp",    "vmtz.cpp",        "vmtzobj.cpp",     "vmundo.cpp",
             "vmvec.cpp",       "vmconnom.cpp",
         },
-        .flags = tads_cpp_flags,
+        .flags = tads3_cpp_flags,
     });
 
     // WASI compatibility stubs (dup, geteuid, etc.)
@@ -561,6 +722,7 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
 
     addGlkSupport(exe, b, wasi_glk, false);
     exe.addIncludePath(b.path("../garglk/terps/tads/glk"));
+    // tads2 include path needed for os.h, trd.h (used by GLK layer)
     exe.addIncludePath(b.path("../garglk/terps/tads/tads2"));
     exe.addIncludePath(b.path("../garglk/terps/tads/tads3"));
     exe.linkLibCpp();

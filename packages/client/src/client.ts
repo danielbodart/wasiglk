@@ -375,7 +375,7 @@ export class WasiGlkClient {
 
 function getInterpreterName(format: StoryFormat): string {
   const names: Record<string, string> = {
-    glulx: 'glulxe', zcode: 'fizmo', hugo: 'hugo', tads2: 'tads', tads3: 'tads',
+    glulx: 'glulxe', zcode: 'fizmo', hugo: 'hugo', tads2: 'tads2', tads3: 'tads3',
   };
   return names[format] ?? 'glulxe';
 }

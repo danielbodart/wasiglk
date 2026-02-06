@@ -22,6 +22,7 @@ The combination of Zig, WASI, JSPI, and wasm-opt produces dramatically smaller b
 | glulxe.wasm | 1.68 MB | 240 KB | **86% smaller** |
 | git.wasm | 1.68 MB | 249 KB | **85% smaller** |
 | hugo.wasm | 1.12 MB | 207 KB | **82% smaller** |
+| tads.wasm | 3.9 MB | 1.86 MB | **52% smaller** |
 | scare.wasm | 1.82 MB | 447 KB | **76% smaller** |
 
 **Why WASI?** Targeting [WASI](https://wasi.dev/) instead of Emscripten's custom runtime means portable binaries that run in browsers (via a shim), Node.js, Bun, Deno, and standalone runtimes like Wasmtime. WASI binaries are self-contained with no generated JavaScript glue code, and WASI is a W3C standard with broad industry backing rather than a project-specific runtime.
@@ -30,7 +31,7 @@ The combination of Zig, WASI, JSPI, and wasm-opt produces dramatically smaller b
 
 **Why JSPI?** JSPI (JavaScript Promise Integration) is a native browser feature that allows WASM to suspend and resume execution without code transformation, resulting in smaller binaries and better performance.
 
-**Current limitations:** JSPI is cutting-edge technology currently only available in Chrome 131+. Firefox has experimental support that can be enabled via `about:config` by setting `javascript.options.wasm_js_promise_integration` to `true`. Additionally, some C++ interpreters (Bocfel, TADS) are blocked on upstream wasi-sdk changes for exception handling. In the long term, JSPI should achieve wide browser support and become the preferred approach for async WASM.
+**Current limitations:** JSPI is cutting-edge technology currently only available in Chrome 131+. Firefox has experimental support that can be enabled via `about:config` by setting `javascript.options.wasm_js_promise_integration` to `true`. Additionally, Bocfel (C++ Z-machine interpreter) is blocked on upstream wasi-sdk changes for C++ exception handling. In the long term, JSPI should achieve wide browser support and become the preferred approach for async WASM.
 
 The interpreters use a Glk implementation (in `packages/server/src/`) that communicates via JSON over stdin/stdout, compatible with the RemGlk protocol.
 
@@ -61,11 +62,11 @@ The `./run` script auto-installs all required tools (Zig, Bun, wasi-sdk) on firs
 | [Level9](https://github.com/garglk/garglk) | C | Level 9 | .l9, .sna | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
 | [Magnetic](https://github.com/garglk/garglk) | C | Magnetic Scrolls | .mag | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
 | [Scare](https://github.com/garglk/garglk) | C | ADRIFT | .taf | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ✅ | ✅ |
-| [TADS](https://github.com/garglk/garglk) | C/C++ | TADS 2/3 | .gam, .t3 | [GPL-2.0](https://github.com/garglk/garglk/blob/master/licenses/GNU%20General%20Public%20License.txt) | ❌ (C++ exceptions) | ✅ |
+| [TADS](https://github.com/garglk/garglk) | C/C++ | TADS 2/3 | .gam, .t3 | [TADS Freeware](https://www.tads.org/t3doc/license.txt) | ✅ | ✅ |
 
 ### Native-Only Interpreters
 
-**Bocfel and TADS** are C++ interpreters that use exceptions for control flow. WASM builds are blocked because wasi-sdk doesn't ship `libc++`/`libc++abi` with C++ exception support.
+**Bocfel** is a C++ interpreter that uses C++ exceptions (`throw`/`catch`) for control flow. Its WASM build is blocked because wasi-sdk doesn't ship `libc++`/`libc++abi` with C++ exception support. (TADS also uses C++ but its error handling is setjmp/longjmp-based, so it compiles to WASM without C++ exception support.)
 
 **What's needed for C++ WASM support:**
 - wasi-sdk built with `LIBCXX_ENABLE_EXCEPTIONS=ON`, `LIBCXXABI_ENABLE_EXCEPTIONS=ON`, and `libunwind`

@@ -65,7 +65,13 @@ pub fn build(b: *std.Build) void {
     b.step("scare", "Build Scare interpreter (ADRIFT)").dependOn(&scare_install.step);
     b.getInstallStep().dependOn(&scare_install.step);
 
-    // Native-only interpreters (C++ with exceptions)
+    // TADS uses setjmp/longjmp (not C++ exceptions) so it works on both native and WASM
+    const tads = buildTads(b, target, optimize, wasi_glk);
+    const tads_install = b.addInstallArtifact(tads, .{});
+    b.step("tads", "Build TADS 2/3 interpreter").dependOn(&tads_install.step);
+    b.getInstallStep().dependOn(&tads_install.step);
+
+    // Native-only interpreters (C++ with actual throw/catch exceptions)
     // WASM blocked by wasi-sdk lacking C++ exception support
     // Tracking: https://github.com/WebAssembly/wasi-sdk/issues/565
     if (is_native) {
@@ -73,11 +79,6 @@ pub fn build(b: *std.Build) void {
         const bocfel_install = b.addInstallArtifact(bocfel, .{});
         b.step("bocfel", "Build Bocfel interpreter (native only)").dependOn(&bocfel_install.step);
         b.getInstallStep().dependOn(&bocfel_install.step);
-
-        const tads = buildTads(b, target, optimize, wasi_glk);
-        const tads_install = b.addInstallArtifact(tads, .{});
-        b.step("tads", "Build TADS 2/3 interpreter (native only)").dependOn(&tads_install.step);
-        b.getInstallStep().dependOn(&tads_install.step);
     }
 }
 
@@ -385,12 +386,38 @@ fn buildBocfel(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
 }
 
 fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    // TADS uses setjmp/longjmp for error handling (not C++ exceptions),
+    // so it needs WASM exception handling support like Git/AdvSys/Alan.
+    const tads_target = if (target.result.cpu.arch == .wasm32)
+        b.resolveTargetQuery(.{
+            .cpu_arch = .wasm32,
+            .os_tag = .wasi,
+            .cpu_features_add = std.Target.wasm.featureSet(&.{.exception_handling}),
+        })
+    else
+        target;
+
+    const is_wasm = tads_target.result.cpu.arch == .wasm32;
+
     const exe = b.addExecutable(.{
         .name = "tads",
-        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+        .root_module = b.createModule(.{ .target = tads_target, .optimize = optimize }),
     });
 
-    const tads_c_flags: []const []const u8 = &.{
+    const tads_c_flags: []const []const u8 = if (is_wasm) &.{
+        "-DGLK",
+        "-DGLK_TIMERS",
+        "-DGLK_UNICODE",
+        "-DTC_TARGET_T3",
+        "-DRUNTIME",
+        "-DVMGLOB_STRUCT",
+        "-Wall",
+        "-Wno-pointer-sign",
+        "-Wno-parentheses",
+        "-D_WASI_EMULATED_SIGNAL",
+        "-mllvm", "-wasm-enable-sjlj",
+        "-mllvm", "-wasm-use-legacy-eh=false",
+    } else &.{
         "-DGLK",
         "-DGLK_TIMERS",
         "-DGLK_UNICODE",
@@ -402,7 +429,24 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
         "-Wno-parentheses",
     };
 
-    const tads_cpp_flags: []const []const u8 = &.{
+    const tads_cpp_flags: []const []const u8 = if (is_wasm) &.{
+        "-DGLK",
+        "-DGLK_TIMERS",
+        "-DGLK_UNICODE",
+        "-DTC_TARGET_T3",
+        "-DRUNTIME",
+        "-DVMGLOB_STRUCT",
+        "-Wall",
+        "-std=c++11",
+        "-fno-exceptions",
+        "-Wno-deprecated-register",
+        "-Wno-logical-not-parentheses",
+        "-Wno-pointer-sign",
+        "-Wno-string-concatenation",
+        "-D_WASI_EMULATED_SIGNAL",
+        "-mllvm", "-wasm-enable-sjlj",
+        "-mllvm", "-wasm-use-legacy-eh=false",
+    } else &.{
         "-DGLK",
         "-DGLK_TIMERS",
         "-DGLK_UNICODE",
@@ -431,10 +475,28 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     exe.addCSourceFiles(.{
         .root = b.path("../garglk/terps/tads/glk"),
         .files = &.{
-            "osportable.cc", "t23run.cpp", "t3askf.cpp",
-            "t3indlg.cpp",   "vmuni_cs.cpp",
+            "t23run.cpp", "t3askf.cpp",
+            "t3indlg.cpp", "vmuni_cs.cpp",
         },
         .flags = tads_cpp_flags,
+    });
+
+    // osportable.cc needs POSIX stub macros on WASI (dup, geteuid, etc.)
+    exe.addCSourceFiles(.{
+        .root = b.path("../garglk/terps/tads/glk"),
+        .files = &.{"osportable.cc"},
+        .flags = if (is_wasm) &.{
+            "-DGLK",       "-DGLK_TIMERS",  "-DGLK_UNICODE", "-DTC_TARGET_T3",
+            "-DRUNTIME",   "-DVMGLOB_STRUCT", "-Wall",        "-std=c++11",
+            "-fno-exceptions", "-Wno-deprecated-register",
+            "-D_WASI_EMULATED_SIGNAL",
+            "-Ddup(x)=(-1)",
+            "-Dgeteuid()=((unsigned)0)",
+            "-Dgetegid()=((unsigned)0)",
+            "-Dgetgroups(a,b)=(0)",
+            "-mllvm", "-wasm-enable-sjlj",
+            "-mllvm", "-wasm-use-legacy-eh=false",
+        } else tads_cpp_flags,
     });
 
     // TADS 2 runtime (C)
@@ -488,11 +550,24 @@ fn buildTads(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
         .flags = tads_cpp_flags,
     });
 
+    // WASI compatibility stubs (dup, geteuid, etc.)
+    if (is_wasm) {
+        exe.addCSourceFiles(.{
+            .root = b.path("src"),
+            .files = &.{"tads_compat.c"},
+            .flags = &.{"-D_WASI_EMULATED_SIGNAL"},
+        });
+    }
+
     addGlkSupport(exe, b, wasi_glk, false);
     exe.addIncludePath(b.path("../garglk/terps/tads/glk"));
     exe.addIncludePath(b.path("../garglk/terps/tads/tads2"));
     exe.addIncludePath(b.path("../garglk/terps/tads/tads3"));
     exe.linkLibCpp();
+
+    if (is_wasm) {
+        addWasiSetjmp(exe, b);
+    }
 
     return exe;
 }

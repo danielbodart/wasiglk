@@ -39,15 +39,21 @@ The package bundles optimized WASM binaries for these Interactive Fiction format
 |-------------|--------|------------|
 | Glulxe | Glulx | .ulx, .gblorb |
 | Git | Glulx | .ulx, .gblorb |
+| Fizmo | Z-machine (v1-5, 7, 8) | .z1-.z8, .zblorb |
 | Hugo | Hugo | .hex |
+| TADS 2 | TADS 2 | .gam |
+| TADS 3 | TADS 3 | .t3 |
 | Scare | ADRIFT | .taf |
 | Agility | AGT | .agx |
-| Alan2 | Alan 2 | .acd |
-| Alan3 | Alan 3 | .a3c |
+| Alan 2 | Alan 2 | .acd |
+| Alan 3 | Alan 3 | .a3c |
 | AdvSys | AdvSys | .dat |
 | JACL | JACL | .j2 |
-| Level9 | Level 9 | .l9, .sna |
+| Level 9 | Level 9 | .l9, .sna |
 | Magnetic | Magnetic Scrolls | .mag |
+| Scott | Scott Adams | .saga |
+| Plus | Scott Adams Plus | .sagaplus |
+| Taylor | Adventure Int'l UK | .taylor |
 
 ## File Storage
 

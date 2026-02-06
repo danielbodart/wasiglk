@@ -41,7 +41,16 @@ export interface UpdatesConfig {
   charHeight?: number;
 }
 
-/** Client for running Interactive Fiction interpreters in a Web Worker. */
+/**
+ * Client for running Interactive Fiction interpreters in a Web Worker.
+ *
+ * Use {@link createClient} to create an instance. The client loads the story
+ * file and interpreter WASM module, then runs the interpreter in a Web Worker
+ * using JSPI for async I/O.
+ *
+ * Call {@link updates} to start the interpreter and receive typed updates
+ * via an async iterator. Send user input back with {@link sendInput}.
+ */
 export class WasiGlkClient {
   private storyData: Uint8Array;
   private interpreterData: ArrayBuffer;
@@ -73,6 +82,12 @@ export class WasiGlkClient {
     this.filesystem = filesystem;
   }
 
+  /**
+   * Create a new client instance from configuration.
+   * Loads the story file and interpreter, parses Blorb if applicable,
+   * and returns a ready-to-use client.
+   * @param config - Client configuration with story URL/data and worker URL
+   */
   static async create(config: ClientConfig): Promise<WasiGlkClient> {
     // Load story
     let storyData: Uint8Array;
@@ -135,22 +150,38 @@ export class WasiGlkClient {
     return new WasiGlkClient(executableData, interpreterData, formatInfo, blorb, config.workerUrl, storyId, config.filesystem ?? 'auto');
   }
 
+  /** The detected format and interpreter for the loaded story. */
   get format(): FormatInfo {
     return this.formatInfo;
   }
 
+  /** Get the Blorb parser if the story is a Blorb file, or null otherwise. */
   getBlorb(): BlorbParser | null {
     return this.blorb;
   }
 
+  /**
+   * Get a blob URL for a Blorb image resource by number.
+   * @param imageNum - The image resource number from the Blorb file
+   * @returns A blob URL string, or undefined if not found
+   */
   getImageUrl(imageNum: number): string | undefined {
     return this.blorb?.getImageUrl(imageNum);
   }
 
+  /**
+   * Send line or character input to the interpreter.
+   * Call this in response to an `input-request` update.
+   * @param value - The input string (full line for line input, single char for char input)
+   */
   sendInput(value: string): void {
     this.worker?.postMessage({ type: 'input', value } satisfies MainToWorkerMessage);
   }
 
+  /**
+   * Send a single character input. Alias for {@link sendInput}.
+   * @param char - The character to send
+   */
   sendChar(char: string): void {
     this.sendInput(char);
   }
@@ -223,6 +254,7 @@ export class WasiGlkClient {
     } satisfies MainToWorkerMessage);
   }
 
+  /** Stop the interpreter and terminate the Web Worker. */
   stop(): void {
     this.running = false;
     this.blorb?.dispose();
@@ -237,6 +269,28 @@ export class WasiGlkClient {
     }
   }
 
+  /**
+   * Start the interpreter and yield updates as they arrive.
+   *
+   * Returns an async iterator of {@link ClientUpdate} objects representing
+   * text content, input requests, window changes, and other events.
+   *
+   * @param config - Display metrics (width/height in characters or pixels)
+   *
+   * @example
+   * ```typescript
+   * for await (const update of client.updates({ width: 80, height: 24 })) {
+   *   switch (update.type) {
+   *     case 'content':
+   *       // Render text content
+   *       break;
+   *     case 'input-request':
+   *       // Prompt user and call client.sendInput(response)
+   *       break;
+   *   }
+   * }
+   * ```
+   */
   async *updates(config: UpdatesConfig): AsyncIterableIterator<ClientUpdate> {
     if (this.running) throw new Error('Client is already running');
     this.running = true;
@@ -375,7 +429,12 @@ export class WasiGlkClient {
 
 function getInterpreterName(format: StoryFormat): string {
   const names: Record<string, string> = {
-    glulx: 'glulxe', zcode: 'fizmo', hugo: 'hugo', tads2: 'tads2', tads3: 'tads3',
+    glulx: 'glulxe', zcode: 'fizmo', hugo: 'hugo',
+    tads2: 'tads2', tads3: 'tads3',
+    alan2: 'alan2', alan3: 'alan3',
+    adrift: 'scare', agt: 'agility', advsys: 'advsys',
+    level9: 'level9', magnetic: 'magnetic',
+    scott: 'scott', taylor: 'taylor', sagaplus: 'plus',
   };
   return names[format] ?? 'glulxe';
 }
@@ -402,7 +461,25 @@ function getFileTypeInfo(filetype: 'save' | 'data' | 'transcript' | 'command'): 
   }
 }
 
-/** Create a new WasiGlk client. Loads the story and interpreter, returning a ready-to-use client. */
+/**
+ * Create a new WasiGlk client.
+ *
+ * Loads the story file and appropriate WASM interpreter, auto-detecting
+ * the story format from file extension or Blorb contents. Returns a
+ * ready-to-use client.
+ *
+ * @param config - Client configuration with story URL/data and worker URL
+ * @returns A configured client instance ready to call {@link WasiGlkClient.updates}
+ *
+ * @example
+ * ```typescript
+ * const client = await createClient({
+ *   storyUrl: '/stories/zork1.z5',
+ *   workerUrl: '/worker.js',
+ *   filesystem: 'opfs',
+ * });
+ * ```
+ */
 export async function createClient(config: ClientConfig): Promise<WasiGlkClient> {
   return WasiGlkClient.create(config);
 }

@@ -3,7 +3,32 @@
  *
  * TypeScript client library for running Interactive Fiction interpreters
  * compiled to WebAssembly with Zig. Run classic text adventures in the
- * browser via Web Workers and JSPI.
+ * browser via Web Workers, WASM and JSPI.
+ *
+ * ## Supported Interpreters
+ *
+ * | Interpreter | Format | Extensions |
+ * |---|---|---|
+ * | Glulxe | Glulx | .ulx, .gblorb |
+ * | Fizmo | Z-machine (v1-5, 7, 8) | .z1-.z8, .zblorb |
+ * | Git | Glulx | .ulx, .gblorb |
+ * | Hugo | Hugo | .hex |
+ * | TADS 2 | TADS 2 | .gam |
+ * | TADS 3 | TADS 3 | .t3 |
+ * | Alan 2 | Alan 2 | .acd |
+ * | Alan 3 | Alan 3 | .a3c |
+ * | Scare | ADRIFT | .taf |
+ * | Agility | AGT | .agx |
+ * | AdvSys | AdvSys | .dat |
+ * | Level 9 | Level 9 | .l9, .sna |
+ * | Magnetic | Magnetic Scrolls | .mag |
+ * | Scott | Scott Adams | .saga |
+ * | Plus | Scott Adams Plus | .sagaplus |
+ * | Taylor | Adventure Int'l UK | .taylor |
+ * | JACL | JACL | .j2 |
+ *
+ * The correct interpreter is selected automatically from the file extension
+ * or Blorb contents.
  *
  * @example
  * ```typescript

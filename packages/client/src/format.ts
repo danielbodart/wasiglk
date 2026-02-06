@@ -35,15 +35,15 @@ const EXTENSION_MAP: Record<string, FormatInfo> = {
   '.blb': { format: 'glulx', interpreter: 'glulxe', isBlorb: true },
 
   // Z-machine
-  '.z1': { format: 'zcode', interpreter: 'git', isBlorb: false },
-  '.z2': { format: 'zcode', interpreter: 'git', isBlorb: false },
-  '.z3': { format: 'zcode', interpreter: 'git', isBlorb: false },
-  '.z4': { format: 'zcode', interpreter: 'git', isBlorb: false },
-  '.z5': { format: 'zcode', interpreter: 'git', isBlorb: false },
-  '.z6': { format: 'zcode', interpreter: 'git', isBlorb: false },
-  '.z7': { format: 'zcode', interpreter: 'git', isBlorb: false },
-  '.z8': { format: 'zcode', interpreter: 'git', isBlorb: false },
-  '.zblorb': { format: 'zcode', interpreter: 'git', isBlorb: true },
+  '.z1': { format: 'zcode', interpreter: 'fizmo', isBlorb: false },
+  '.z2': { format: 'zcode', interpreter: 'fizmo', isBlorb: false },
+  '.z3': { format: 'zcode', interpreter: 'fizmo', isBlorb: false },
+  '.z4': { format: 'zcode', interpreter: 'fizmo', isBlorb: false },
+  '.z5': { format: 'zcode', interpreter: 'fizmo', isBlorb: false },
+  '.z6': { format: 'zcode', interpreter: 'fizmo', isBlorb: false },
+  '.z7': { format: 'zcode', interpreter: 'fizmo', isBlorb: false },
+  '.z8': { format: 'zcode', interpreter: 'fizmo', isBlorb: false },
+  '.zblorb': { format: 'zcode', interpreter: 'fizmo', isBlorb: true },
 
   // Hugo
   '.hex': { format: 'hugo', interpreter: 'hugo', isBlorb: false },
@@ -91,14 +91,14 @@ const MAGIC_SIGNATURES: Array<{
     interpreter: 'glulxe',
   },
   // Z-machine versions (first byte indicates version)
-  { bytes: [0x01], offset: 0, format: 'zcode', interpreter: 'git' },
-  { bytes: [0x02], offset: 0, format: 'zcode', interpreter: 'git' },
-  { bytes: [0x03], offset: 0, format: 'zcode', interpreter: 'git' },
-  { bytes: [0x04], offset: 0, format: 'zcode', interpreter: 'git' },
-  { bytes: [0x05], offset: 0, format: 'zcode', interpreter: 'git' },
-  { bytes: [0x06], offset: 0, format: 'zcode', interpreter: 'git' },
-  { bytes: [0x07], offset: 0, format: 'zcode', interpreter: 'git' },
-  { bytes: [0x08], offset: 0, format: 'zcode', interpreter: 'git' },
+  { bytes: [0x01], offset: 0, format: 'zcode', interpreter: 'fizmo' },
+  { bytes: [0x02], offset: 0, format: 'zcode', interpreter: 'fizmo' },
+  { bytes: [0x03], offset: 0, format: 'zcode', interpreter: 'fizmo' },
+  { bytes: [0x04], offset: 0, format: 'zcode', interpreter: 'fizmo' },
+  { bytes: [0x05], offset: 0, format: 'zcode', interpreter: 'fizmo' },
+  { bytes: [0x06], offset: 0, format: 'zcode', interpreter: 'fizmo' },
+  { bytes: [0x07], offset: 0, format: 'zcode', interpreter: 'fizmo' },
+  { bytes: [0x08], offset: 0, format: 'zcode', interpreter: 'fizmo' },
   // Hugo: Look for HUGO signature at a specific offset
   {
     bytes: [0x48, 0x55, 0x47, 0x4f],
@@ -229,7 +229,7 @@ function detectBlorbExecutableType(
     }
     if (chunkType === 0x5a434f44) {
       // ZCOD
-      return { format: 'zcode', interpreter: 'git' };
+      return { format: 'zcode', interpreter: 'fizmo' };
     }
 
     pos = pos + 8 + chunkLen;

@@ -35,6 +35,7 @@ pub fn build(b: *std.Build) void {
         .{ "jacl", "Build JACL interpreter", buildJacl },
         .{ "level9", "Build Level 9 interpreter", buildLevel9 },
         .{ "magnetic", "Build Magnetic interpreter", buildMagnetic },
+        .{ "fizmo", "Build Fizmo interpreter (Z-machine)", buildFizmo },
     };
 
     inline for (interpreters) |info| {
@@ -850,6 +851,134 @@ fn addWasiSetjmp(exe: *std.Build.Step.Compile, b: *std.Build) void {
             exe.addObjectFile(.{ .cwd_relative = path });
         }
     }
+}
+
+fn buildFizmo(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, wasi_glk: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "fizmo",
+        .root_module = b.createModule(.{ .target = target, .optimize = optimize }),
+    });
+
+    // Force-include the compat header to provide locale stubs and other declarations
+    const compat_header_path = b.path("src/fizmo_compat.h").getPath(b);
+
+    const fizmo_flags: []const []const u8 = &.{
+        "-DDISABLE_BABEL",
+        "-DDISABLE_CONFIGFILES",
+        "-DDISABLE_FILELIST",
+        "-DDISABLE_COMMAND_HISTORY",
+        "-D_WASI_EMULATED_SIGNAL",
+        "-include",
+        compat_header_path,
+        "-Wall",
+        "-Wno-unused-but-set-variable",
+        "-Wno-unused-variable",
+    };
+
+    // Core interpreter sources (libfizmo)
+    exe.addCSourceFiles(.{
+        .root = b.path("../libfizmo/src/interpreter"),
+        .files = &.{
+            "babel.c",
+            "blockbuf.c",
+            "blorb.c",
+            "cmd_hst.c",
+            "config.c",
+            // debugger.c excluded - uses sockets, not available in WASI
+            "filelist.c",
+            "fizmo.c",
+            "history.c",
+            "hyphenation.c",
+            "iff.c",
+            "mathemat.c",
+            "misc.c",
+            "mt19937ar.c",
+            "object.c",
+            "output.c",
+            "property.c",
+            "routine.c",
+            "savegame.c",
+            "sound.c",
+            "stack.c",
+            "streams.c",
+            "table.c",
+            "text.c",
+            "undo.c",
+            "variable.c",
+            "wordwrap.c",
+            "zpu.c",
+        },
+        .flags = fizmo_flags,
+    });
+
+    // Tools library (libfizmo)
+    exe.addCSourceFiles(.{
+        .root = b.path("../libfizmo/src/tools"),
+        .files = &.{
+            "filesys.c",
+            "filesys_c.c",
+            "i18n.c",
+            "list.c",
+            "stringmap.c",
+            "tracelog.c",
+            "types.c",
+            "z_ucs.c",
+        },
+        .flags = fizmo_flags,
+    });
+
+    // Locales (libfizmo)
+    exe.addCSourceFiles(.{
+        .root = b.path("../libfizmo/src/locales"),
+        .files = &.{
+            "libfizmo_locales.c",
+            "locale_data.c",
+        },
+        .flags = fizmo_flags,
+    });
+
+    // Glk interface (libglkif)
+    exe.addCSourceFiles(.{
+        .root = b.path("../libglkif/src/glk_interface"),
+        .files = &.{
+            "glk_blorb_if.c",
+            "glk_filesys_if.c",
+            "glk_interface.c",
+            "glk_screen_if.c",
+        },
+        .flags = fizmo_flags,
+    });
+
+    // Glk interface locales (libglkif)
+    exe.addCSourceFiles(.{
+        .root = b.path("../libglkif/src/locales"),
+        .files = &.{
+            "libglkif_locales.c",
+            "locale_data.c",
+        },
+        .flags = fizmo_flags,
+    });
+
+    // Glue + compatibility stubs
+    exe.addCSourceFiles(.{
+        .root = b.path("src"),
+        .files = &.{
+            "fizmo_glk.c",
+            "fizmo_compat.c",
+        },
+        .flags = fizmo_flags,
+    });
+
+    // Include paths - fizmo_include must come first to override <signal.h> with sigaction compat
+    // Use -isystem via addSystemIncludePath won't work (lower priority than sysroot)
+    // Instead we use a C flag to add it as a system include before sysroot
+    exe.addIncludePath(b.path("src/fizmo_include"));
+    exe.addIncludePath(b.path("../libfizmo/src"));
+    exe.addIncludePath(b.path("../libglkif/src"));
+
+    addGlkSupport(exe, b, wasi_glk, true);
+
+    return exe;
 }
 
 // Helper to add common Glk support to an executable

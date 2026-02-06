@@ -108,7 +108,7 @@ export class WasiGlkClient {
           formatInfo.interpreter = 'glulxe';
         } else if (exec.type === 'ZCOD') {
           formatInfo.format = 'zcode';
-          formatInfo.interpreter = 'bocfel';
+          formatInfo.interpreter = 'fizmo';
         }
       }
     }
@@ -375,7 +375,7 @@ export class WasiGlkClient {
 
 function getInterpreterName(format: StoryFormat): string {
   const names: Record<string, string> = {
-    glulx: 'glulxe', zcode: 'bocfel', hugo: 'hugo', tads2: 'tads', tads3: 'tads',
+    glulx: 'glulxe', zcode: 'fizmo', hugo: 'hugo', tads2: 'tads', tads3: 'tads',
   };
   return names[format] ?? 'glulxe';
 }

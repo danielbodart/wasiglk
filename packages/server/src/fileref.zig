@@ -45,7 +45,6 @@ export fn glk_fileref_create_temp(usage: glui32, rock: glui32) callconv(.c) fref
 pub export fn glk_fileref_create_by_name(usage: glui32, name: ?[*:0]const u8, rock: glui32) callconv(.c) frefid_t {
     const name_ptr = name orelse return null;
     const name_span = std.mem.span(name_ptr);
-    std.debug.print("[glk] fileref_create_by_name: usage={d} name='{s}'\n", .{ usage, name_span });
     const filename_copy = allocator.dupe(u8, name_span) catch return null;
 
     const fref = allocator.create(FileRefData) catch {
@@ -77,16 +76,11 @@ pub export fn glk_fileref_create_by_name(usage: glui32, name: ?[*:0]const u8, ro
 export fn glk_fileref_create_by_prompt(usage: glui32, fmode: glui32, rock: glui32) callconv(.c) frefid_t {
     const protocol = @import("protocol.zig");
 
-    std.debug.print("[glk] fileref_create_by_prompt: usage={d} fmode={d} - sending specialinput\n", .{ usage, fmode });
-
     // Send specialinput and wait for user response (JSPI suspends here)
     const filename = protocol.sendSpecialInputAndWait(fmode, usage) orelse {
-        std.debug.print("[glk] fileref_create_by_prompt: user cancelled or error\n", .{});
         return null; // User cancelled
     };
     defer allocator.free(filename);
-
-    std.debug.print("[glk] fileref_create_by_prompt: got filename '{s}'\n", .{filename});
 
     // Create the fileref with the returned filename
     const fref = allocator.create(FileRefData) catch return null;

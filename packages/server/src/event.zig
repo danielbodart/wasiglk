@@ -385,6 +385,11 @@ export fn glk_cancel_line_event(win_opaque: winid_t, event: ?*event_t) callconv(
             var typecode = "&+#!Cn".*;
             unregister_fn(@ptrCast(w.line_buffer), w.line_buflen, &typecode, w.line_buffer_rock);
         }
+    } else if (w.line_request_uni and w.line_buffer_uni != null) {
+        if (dispatch.retained_unregister_fn) |unregister_fn| {
+            var typecode = "&+#!Iu".*;
+            unregister_fn(@ptrCast(w.line_buffer_uni), w.line_buflen, &typecode, w.line_buffer_rock);
+        }
     }
 
     w.line_request = false;
@@ -421,6 +426,13 @@ export fn glk_request_line_event_uni(win_opaque: winid_t, buf: ?[*]glui32, maxle
     win.?.line_buflen = maxlen;
     win.?.line_initlen = initlen;
     win.?.line_partial_len = 0; // Reset partial text from any previous interrupted input
+
+    // Register the buffer with the retained registry so it gets copied back
+    if (dispatch.retained_register_fn) |register_fn| {
+        // Typecode "&+#!Iu" = reference, passout, array, retained, glui32
+        var typecode = "&+#!Iu".*;
+        win.?.line_buffer_rock = register_fn(@ptrCast(buf), maxlen, &typecode);
+    }
 }
 
 // glk_exit is used by event handling

@@ -75,65 +75,56 @@ export fn glk_buffer_canon_normalize_uni(buf: ?[*]glui32, len: glui32, numchars:
 // ============== Unicode Output ==============
 
 export fn glk_put_char_uni(ch: glui32) callconv(.c) void {
-    if (ch < 0x80) {
-        stream.glk_put_char(@intCast(ch));
-    } else {
-        // UTF-8 encode
-        var utf8_buf: [4]u8 = undefined;
-        const len = std.unicode.utf8Encode(@intCast(ch), &utf8_buf) catch return;
-        for (utf8_buf[0..len]) |b| {
-            stream.glk_put_char(b);
-        }
-    }
+    stream.putCharUniToStream(state.current_stream, ch);
 }
 
 export fn glk_put_string_uni(s: ?[*:0]const glui32) callconv(.c) void {
     const s_ptr = s orelse return;
     var ptr = s_ptr;
     while (ptr[0] != 0) : (ptr += 1) {
-        glk_put_char_uni(ptr[0]);
+        stream.putCharUniToStream(state.current_stream, ptr[0]);
     }
 }
 
 export fn glk_put_buffer_uni(buf: ?[*]const glui32, len: glui32) callconv(.c) void {
     const buf_ptr = buf orelse return;
     for (buf_ptr[0..len]) |ch| {
-        glk_put_char_uni(ch);
+        stream.putCharUniToStream(state.current_stream, ch);
     }
 }
 
 export fn glk_put_char_stream_uni(str: strid_t, ch: glui32) callconv(.c) void {
-    const save = state.current_stream;
-    state.current_stream = @ptrCast(@alignCast(str));
-    glk_put_char_uni(ch);
-    state.current_stream = save;
+    stream.putCharUniToStream(@ptrCast(@alignCast(str)), ch);
 }
 
 export fn glk_put_string_stream_uni(str: strid_t, s: ?[*:0]const glui32) callconv(.c) void {
-    const save = state.current_stream;
-    state.current_stream = @ptrCast(@alignCast(str));
-    glk_put_string_uni(s);
-    state.current_stream = save;
+    const s_ptr = s orelse return;
+    const str_data = @as(?*state.StreamData, @ptrCast(@alignCast(str)));
+    var ptr = s_ptr;
+    while (ptr[0] != 0) : (ptr += 1) {
+        stream.putCharUniToStream(str_data, ptr[0]);
+    }
 }
 
 export fn glk_put_buffer_stream_uni(str: strid_t, buf: ?[*]const glui32, len: glui32) callconv(.c) void {
-    const save = state.current_stream;
-    state.current_stream = @ptrCast(@alignCast(str));
-    glk_put_buffer_uni(buf, len);
-    state.current_stream = save;
+    const buf_ptr = buf orelse return;
+    const str_data = @as(?*state.StreamData, @ptrCast(@alignCast(str)));
+    for (buf_ptr[0..len]) |ch| {
+        stream.putCharUniToStream(str_data, ch);
+    }
 }
 
 // ============== Unicode Input ==============
 
 export fn glk_get_char_stream_uni(str: strid_t) callconv(.c) glsi32 {
-    return stream.glk_get_char_stream(str);
+    return stream.getCharUniFromStream(@ptrCast(@alignCast(str)));
 }
 
 export fn glk_get_buffer_stream_uni(str: strid_t, buf: ?[*]glui32, len: glui32) callconv(.c) glui32 {
     const buf_ptr = buf orelse return 0;
-    // Simplified - doesn't handle UTF-8 properly
+    const str_data: ?*state.StreamData = @ptrCast(@alignCast(str));
     for (buf_ptr[0..len], 0..) |*slot, i| {
-        const ch = stream.glk_get_char_stream(str);
+        const ch = stream.getCharUniFromStream(str_data);
         if (ch < 0) return @intCast(i);
         slot.* = @intCast(ch);
     }
@@ -143,8 +134,9 @@ export fn glk_get_buffer_stream_uni(str: strid_t, buf: ?[*]glui32, len: glui32) 
 export fn glk_get_line_stream_uni(str_opaque: strid_t, buf: ?[*]glui32, len: glui32) callconv(.c) glui32 {
     const buf_ptr = buf orelse return 0;
     if (len == 0) return 0;
+    const str_data: ?*state.StreamData = @ptrCast(@alignCast(str_opaque));
     for (buf_ptr[0 .. len - 1], 0..) |*slot, i| {
-        const ch = stream.glk_get_char_stream(str_opaque);
+        const ch = stream.getCharUniFromStream(str_data);
         if (ch < 0) return @intCast(i);
         slot.* = @intCast(ch);
         if (ch == '\n') return @intCast(i + 1);

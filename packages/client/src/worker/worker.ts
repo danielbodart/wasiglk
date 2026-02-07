@@ -209,36 +209,36 @@ async function runInterpreter(msg: MainToWorkerMessage & { type: 'init' }): Prom
       return new Promise<string>(resolve => { inputResolve = resolve; });
     });
 
-    // stdout: parse JSON updates
+    // stdout: parse JSON updates, batching all output from one interpreter turn
+    let pendingBatch: RemGlkUpdate[] = [];
+    let batchScheduled = false;
+
     const stdout = ConsoleStdout.lineBuffered((line: string) => {
       if (!line.trim()) return;
       try {
         const update = JSON.parse(line) as RemGlkUpdate;
-        // Track generation for input responses
-        if (update.gen !== undefined) {
-          generation = update.gen;
-        }
-        // Track current input request
+        // Track state immediately (before batched post)
+        if (update.gen !== undefined) generation = update.gen;
         if (update.input && update.input.length > 0) {
-          currentInputRequest = {
-            windowId: update.input[0].id,
-            type: update.input[0].type,
-          };
+          currentInputRequest = { windowId: update.input[0].id, type: update.input[0].type };
         }
-        // Handle timer updates
-        if (update.timer !== undefined) {
-          handleTimerUpdate(update.timer);
-        }
-        // Handle special input (file dialogs)
-        // Just set the pending dialog - the stdin handler will process it
-        // and the storage provider will handle requesting dialogs if needed
+        if (update.timer !== undefined) handleTimerUpdate(update.timer);
         if (update.specialinput) {
-          pendingFileDialog = {
-            filemode: update.specialinput.filemode as FileMode,
-            filetype: update.specialinput.filetype as FileType,
-          };
+          pendingFileDialog = { filemode: update.specialinput.filemode as FileMode, filetype: update.specialinput.filetype as FileType };
         }
-        post({ type: 'update', data: update });
+        // Batch: the interpreter runs synchronously between glk_select calls,
+        // so all styled runs from one turn arrive in the same JS task.
+        // Merge them into one update on the next microtask.
+        pendingBatch.push(update);
+        if (!batchScheduled) {
+          batchScheduled = true;
+          queueMicrotask(() => {
+            batchScheduled = false;
+            const batch = pendingBatch;
+            pendingBatch = [];
+            post({ type: 'update', data: mergeRemGlkUpdates(batch) });
+          });
+        }
       } catch {
         console.log('[interpreter]', line);
       }
@@ -457,6 +457,41 @@ function findFileInTree(dir: Directory, path: string): Inode | null {
   }
 
   return current;
+}
+
+/**
+ * Merge multiple RemGlk updates from one interpreter turn into one.
+ * Style changes cause the interpreter to flush per styled run, but
+ * the renderer needs all content from one turn together.
+ */
+function mergeRemGlkUpdates(updates: RemGlkUpdate[]): RemGlkUpdate {
+  if (updates.length === 1) return updates[0];
+  const merged: RemGlkUpdate = { type: 'update', gen: 0 };
+  for (const update of updates) {
+    if (update.gen !== undefined) merged.gen = update.gen;
+    if (update.type === 'error') merged.type = 'error';
+    if (update.message) merged.message = update.message;
+    if (update.windows) merged.windows = update.windows;
+    if (update.input) merged.input = update.input;
+    if (update.timer !== undefined) merged.timer = update.timer;
+    if (update.specialinput) merged.specialinput = update.specialinput;
+    if (update.disable !== undefined) merged.disable = update.disable;
+    if (update.exit !== undefined) merged.exit = update.exit;
+    if (update.debugoutput) merged.debugoutput = [...(merged.debugoutput ?? []), ...update.debugoutput];
+    if (update.content) {
+      if (!merged.content) merged.content = [];
+      for (const c of update.content) {
+        const existing = merged.content.find(e => e.id === c.id);
+        if (existing && c.text) {
+          if (!existing.text) existing.text = [];
+          existing.text.push(...c.text);
+        } else {
+          merged.content.push({ ...c, text: c.text ? [...c.text] : undefined });
+        }
+      }
+    }
+  }
+  return merged;
 }
 
 /**

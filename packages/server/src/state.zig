@@ -84,6 +84,7 @@ pub const StreamData = struct {
     buf_rock: DispatchRock = .{ .num = 0 },
     // File stream
     file: ?std.fs.File = null,
+    textmode: bool = false,
     // Associated window
     win: ?*WindowData = null,
     // Statistics

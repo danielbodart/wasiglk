@@ -48,6 +48,7 @@ pub export fn glk_stream_open_file(fref_opaque: frefid_t, fmode: glui32, rock: g
                 .readable = readable,
                 .writable = writable,
                 .file = new_file,
+                .textmode = f.textmode,
             };
             state.stream_id_counter += 1;
 
@@ -75,6 +76,7 @@ pub export fn glk_stream_open_file(fref_opaque: frefid_t, fmode: glui32, rock: g
         .readable = readable,
         .writable = writable,
         .file = file,
+        .textmode = f.textmode,
     };
     state.stream_id_counter += 1;
 
@@ -384,12 +386,18 @@ pub fn putCharUniToStream(str: ?*StreamData, ch: glui32) void {
         },
         .file => {
             if (s.file) |f| {
-                if (ch < 0x80) {
-                    _ = f.write(&[_]u8{@intCast(ch)}) catch return;
+                if (s.textmode) {
+                    // Text mode: UTF-8 encode characters
+                    if (ch < 0x80) {
+                        _ = f.write(&[_]u8{@intCast(ch)}) catch return;
+                    } else {
+                        var utf8_buf: [4]u8 = undefined;
+                        const len = std.unicode.utf8Encode(@intCast(ch), &utf8_buf) catch return;
+                        _ = f.write(utf8_buf[0..len]) catch return;
+                    }
                 } else {
-                    var utf8_buf: [4]u8 = undefined;
-                    const len = std.unicode.utf8Encode(@intCast(ch), &utf8_buf) catch return;
-                    _ = f.write(utf8_buf[0..len]) catch return;
+                    // Binary mode: write raw byte
+                    _ = f.write(&[_]u8{if (ch < 256) @intCast(ch) else '?'}) catch return;
                 }
             }
         },

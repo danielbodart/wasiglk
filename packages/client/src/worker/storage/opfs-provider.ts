@@ -153,7 +153,7 @@ export class OpfsProvider implements StorageProvider {
     // Auto-generate a deterministic filename (no dialog in OPFS mode)
     const filename = generateFilename(metadata.filetype);
     console.log(`[opfs] Auto-generated filename for ${metadata.filetype}: ${filename}`);
-    return { filename };
+    return { filename: `var/${filename}` };
   }
 
   /**

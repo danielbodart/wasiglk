@@ -233,7 +233,7 @@ async function runInterpreter(msg: MainToWorkerMessage & { type: 'init' }): Prom
     // Root combines system dirs with storage provider contents (which go in /var/)
     const rootMap = new Map<string, Inode>([
       ['sys', sysDir],
-      ['var', new Directory(rootContents)],  // Storage provider files go here
+      ['var', new Directory(rootContents)],
       ['home', homeDir],
     ]);
 
@@ -329,11 +329,16 @@ function wrapWithJSPI(
     const path = new TextDecoder().decode(bytes.slice(pathPtr, pathPtr + pathLen));
     console.log(`[wasi] path_open: fd=${fd} path="${path}" oflags=${oflags}`);
 
-    // Check if creating a file that should be persisted
+    // Files under /var/ are managed by the storage provider
+    const VAR_PREFIX = 'var/';
+    const isVarPath = path.startsWith(VAR_PREFIX);
+    const storagePath = isVarPath ? path.slice(VAR_PREFIX.length) : path;
+
     const shouldPersist =
       fd === ROOT_FD &&
+      isVarPath &&
       (oflags & wasi.OFLAGS_CREAT) !== 0 &&
-      provider.shouldPersist(path);
+      provider.shouldPersist(storagePath);
 
     if (shouldPersist) {
       // Check if file already exists in the directory tree
@@ -342,7 +347,8 @@ function wrapWithJSPI(
       if (!existingFile) {
         try {
           // Async file creation - WASM suspends here
-          await provider.createFile(path);
+          // Provider paths are relative to /var/, so use storagePath
+          await provider.createFile(storagePath);
         } catch (err) {
           console.error(`[storage] Failed to create file ${path}:`, err);
           // Fall through to normal path_open which will create in-memory file

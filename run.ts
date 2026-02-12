@@ -97,6 +97,11 @@ export async function testClient() {
     await $`bun test --cwd packages/client`;
 }
 
+// Run server regression tests (interpreter output validation)
+export async function testServer(...args: string[]) {
+    await $`bash packages/server/tests/run-regtest.sh ${args}`;
+}
+
 // Run all tests (Zig + client unit tests + E2E)
 export async function test(...args: string[]) {
     await testZig();
@@ -234,7 +239,7 @@ export async function ci() {
 // Command dispatch - same pattern as bodar.ts
 const commands: Record<string, Function> = {
     version, clean, check, build, buildZig, optimize, bundle,
-    testZig, testClient, test, testE2E, testHeaded,
+    testZig, testClient, testServer, test, testE2E, testHeaded,
     demo, serve, jsr, publish, ci
 };
 

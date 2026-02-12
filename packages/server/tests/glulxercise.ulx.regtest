@@ -1,12 +1,11 @@
 ** game: glulxercise.ulx
+** remformat: yes
 
-* basic
+* all
 
 Glulxercise: A Glulx interpreter unit test
 Welcome to the test chamber.
 
-* arith
-
-> arith
+> all
 !FAIL
-Passed.
+All tests passed.

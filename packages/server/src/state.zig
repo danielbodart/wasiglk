@@ -124,7 +124,7 @@ pub var stream_id_counter: glui32 = 1;
 pub var fileref_id_counter: glui32 = 1;
 
 // Text output buffer (fixed size, simple approach)
-pub var text_buffer: [8192]u8 = undefined;
+pub var text_buffer: [65536]u8 = undefined;
 pub var text_buffer_len: usize = 0;
 pub var text_buffer_win: ?*WindowData = null;
 

@@ -589,7 +589,7 @@ fn sendContentUpdate(content: ContentUpdateJson) void {
         .content = &contents,
         .disable = true, // Content-only updates don't expect input
     };
-    var buf: [32768]u8 = undefined;
+    var buf: [131072]u8 = undefined;
     const json = std.fmt.bufPrint(&buf, "{f}", .{std.json.fmt(update, .{ .emit_null_optional_fields = false })}) catch return;
     writeStdout(json);
     writeStdout("\n");

@@ -589,9 +589,16 @@ fn sendContentUpdate(content: ContentUpdateJson) void {
         .content = &contents,
         .disable = true, // Content-only updates don't expect input
     };
+    const fmt_opts = .{std.json.fmt(update, .{ .emit_null_optional_fields = false })};
+    // Try stack buffer first, fall back to heap allocation for large outputs
     var buf: [131072]u8 = undefined;
-    const json = std.fmt.bufPrint(&buf, "{f}", .{std.json.fmt(update, .{ .emit_null_optional_fields = false })}) catch return;
-    writeStdout(json);
+    if (std.fmt.bufPrint(&buf, "{f}", fmt_opts)) |json| {
+        writeStdout(json);
+    } else |_| {
+        const json = std.fmt.allocPrint(allocator, "{f}", fmt_opts) catch return;
+        defer allocator.free(json);
+        writeStdout(json);
+    }
     writeStdout("\n");
     generation += 1;
 }

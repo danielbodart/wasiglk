@@ -4,6 +4,7 @@ const std = @import("std");
 const types = @import("types.zig");
 const state = @import("state.zig");
 const stream = @import("stream.zig");
+const case_tables = @import("unicode_case_tables.zig");
 
 const glui32 = types.glui32;
 const glsi32 = types.glsi32;
@@ -23,9 +24,7 @@ export fn glk_buffer_to_lower_case_uni(buf: ?[*]glui32, len: glui32, numchars: g
     const buf_ptr = buf orelse return numchars;
     const count = @min(numchars, len);
     for (buf_ptr[0..count]) |*ch| {
-        if (ch.* >= 'A' and ch.* <= 'Z') {
-            ch.* += 'a' - 'A';
-        }
+        ch.* = case_tables.unicodeToLower(@intCast(ch.* & 0x1FFFFF));
     }
     return numchars;
 }
@@ -34,9 +33,7 @@ export fn glk_buffer_to_upper_case_uni(buf: ?[*]glui32, len: glui32, numchars: g
     const buf_ptr = buf orelse return numchars;
     const count = @min(numchars, len);
     for (buf_ptr[0..count]) |*ch| {
-        if (ch.* >= 'a' and ch.* <= 'z') {
-            ch.* -= 'a' - 'A';
-        }
+        ch.* = case_tables.unicodeToUpper(@intCast(ch.* & 0x1FFFFF));
     }
     return numchars;
 }
@@ -45,16 +42,12 @@ export fn glk_buffer_to_title_case_uni(buf: ?[*]glui32, len: glui32, numchars: g
     const buf_ptr = buf orelse return numchars;
     if (numchars == 0 or len == 0) return numchars;
 
-    if (buf_ptr[0] >= 'a' and buf_ptr[0] <= 'z') {
-        buf_ptr[0] -= 'a' - 'A';
-    }
+    buf_ptr[0] = case_tables.unicodeToUpper(@intCast(buf_ptr[0] & 0x1FFFFF));
 
     if (lowerrest != 0) {
         const count = @min(numchars, len);
         for (buf_ptr[1..count]) |*ch| {
-            if (ch.* >= 'A' and ch.* <= 'Z') {
-                ch.* += 'a' - 'A';
-            }
+            ch.* = case_tables.unicodeToLower(@intCast(ch.* & 0x1FFFFF));
         }
     }
     return numchars;
@@ -108,6 +101,17 @@ test "glk_buffer_to_lower_case_uni converts buffer" {
     try testing.expectEqual(@as(glui32, 'o'), buf[4]);
 }
 
+test "glk_buffer_to_lower_case_uni handles Unicode" {
+    // Ã(C3) -> ã(E3), Δ(394) -> δ(3B4), Д(414) -> д(434)
+    var buf = [_]glui32{ 0xC3, 0xC4, 0x394, 0x395, 0x414 };
+    _ = glk_buffer_to_lower_case_uni(&buf, 5, 5);
+    try testing.expectEqual(@as(glui32, 0xE3), buf[0]);
+    try testing.expectEqual(@as(glui32, 0xE4), buf[1]);
+    try testing.expectEqual(@as(glui32, 0x3B4), buf[2]);
+    try testing.expectEqual(@as(glui32, 0x3B5), buf[3]);
+    try testing.expectEqual(@as(glui32, 0x434), buf[4]);
+}
+
 test "glk_buffer_to_lower_case_uni with null buf" {
     try testing.expectEqual(@as(glui32, 3), glk_buffer_to_lower_case_uni(null, 5, 3));
 }
@@ -127,6 +131,17 @@ test "glk_buffer_to_upper_case_uni converts buffer" {
     try testing.expectEqual(@as(glui32, 5), result);
     try testing.expectEqual(@as(glui32, 'H'), buf[0]);
     try testing.expectEqual(@as(glui32, 'O'), buf[4]);
+}
+
+test "glk_buffer_to_upper_case_uni handles Unicode" {
+    // ã(E3) -> Ã(C3), δ(3B4) -> Δ(394), д(434) -> Д(414)
+    var buf = [_]glui32{ 0xE3, 0xE4, 0x3B4, 0x3B5, 0x434 };
+    _ = glk_buffer_to_upper_case_uni(&buf, 5, 5);
+    try testing.expectEqual(@as(glui32, 0xC3), buf[0]);
+    try testing.expectEqual(@as(glui32, 0xC4), buf[1]);
+    try testing.expectEqual(@as(glui32, 0x394), buf[2]);
+    try testing.expectEqual(@as(glui32, 0x395), buf[3]);
+    try testing.expectEqual(@as(glui32, 0x414), buf[4]);
 }
 
 test "glk_buffer_to_title_case_uni capitalizes first char" {

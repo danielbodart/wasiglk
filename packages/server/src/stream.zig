@@ -348,20 +348,21 @@ pub fn putCharUniToStream(str: ?*StreamData, ch: glui32) void {
                         protocol.flushTextBuffer();
                         state.text_buffer_win = w;
                     }
+                    // Auto-flush when buffer is nearly full to avoid silent truncation
+                    if (state.text_buffer_len >= state.text_buffer.len - 4) {
+                        protocol.flushTextBuffer();
+                        state.text_buffer_win = w;
+                    }
                     // UTF-8 encode the character into the text buffer
                     if (ch < 0x80) {
-                        if (state.text_buffer_len < state.text_buffer.len) {
-                            state.text_buffer[state.text_buffer_len] = @intCast(ch);
-                            state.text_buffer_len += 1;
-                        }
+                        state.text_buffer[state.text_buffer_len] = @intCast(ch);
+                        state.text_buffer_len += 1;
                     } else {
                         var utf8_buf: [4]u8 = undefined;
                         const len = std.unicode.utf8Encode(@intCast(ch), &utf8_buf) catch return;
                         for (utf8_buf[0..len]) |b| {
-                            if (state.text_buffer_len < state.text_buffer.len) {
-                                state.text_buffer[state.text_buffer_len] = b;
-                                state.text_buffer_len += 1;
-                            }
+                            state.text_buffer[state.text_buffer_len] = b;
+                            state.text_buffer_len += 1;
                         }
                     }
                 }

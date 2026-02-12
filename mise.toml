@@ -1,6 +1,7 @@
 [tools]
 bun = "latest"
 node = "latest"
+python = "latest"
 wasi-sdk = "29"
 wasmtime = "latest"
-zig = "latest"
+zig = "0.14"

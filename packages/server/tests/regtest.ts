@@ -16,7 +16,7 @@
  *   TIMEOUT     - Timeout in seconds (default: 30)
  */
 
-import {readFileSync, readdirSync, existsSync} from "fs";
+import {readFileSync, readdirSync, existsSync, unlinkSync} from "fs";
 import {join, dirname, basename} from "path";
 
 // ---------------------------------------------------------------------------
@@ -625,7 +625,7 @@ function listCommands(cmds: Command[], result: Command[] = [], nested = new Set<
 
 function getInterpreter(gameFile: string): string | null {
     if (gameFile.endsWith(".ulx")) return "glulxe";
-    if (/\.z\d$/.test(gameFile)) return "bocfel";
+    if (/\.z\d$/.test(gameFile)) return "fizmo";
     if (gameFile.endsWith(".hex")) return "hugo";
     return null;
 }
@@ -751,6 +751,20 @@ async function runRegtestFile(regtestFile: string, section?: string): Promise<bo
         console.log(`ERROR: No game file specified in ${regtestFile}`);
         return false;
     }
+
+    // Clean up save files and temp files from previous test runs.
+    // Collect fileref_prompt filenames from this regtest file,
+    // plus glktmp_* temp files that interpreters may leave behind.
+    const saveFiles = new Set<string>();
+    for (const m of content.matchAll(/^>\{fileref_prompt\}\s*(.+)/gm)) {
+        saveFiles.add(m[1].trim());
+    }
+    for (const f of readdirSync(scriptDir)) {
+        if (f.startsWith("glktmp_") || saveFiles.has(f)) {
+            try { unlinkSync(join(scriptDir, f)); } catch {}
+        }
+    }
+
     const gameFile = gameMatch[1].trim();
     const interpName = getInterpreter(gameFile);
     if (!interpName) {

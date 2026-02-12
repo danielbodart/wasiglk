@@ -30,13 +30,13 @@ pub export fn glk_stream_open_file(fref_opaque: frefid_t, fmode: glui32, rock: g
     const writable = (fmode != filemode.Read);
 
     const flags: std.fs.File.OpenFlags = .{
-        .mode = if (writable) .write_only else .read_only,
+        .mode = if (readable and writable) .read_write else if (writable) .write_only else .read_only,
     };
 
     const file = std.fs.cwd().openFile(f.filename, flags) catch |err| {
         if (err == error.FileNotFound and writable) {
             // Create file for writing
-            const new_file = std.fs.cwd().createFile(f.filename, .{}) catch return null;
+            const new_file = std.fs.cwd().createFile(f.filename, .{ .read = readable }) catch return null;
             const stream = allocator.create(StreamData) catch {
                 new_file.close();
                 return null;
